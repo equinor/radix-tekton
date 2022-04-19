@@ -1,53 +1,43 @@
 package pipeline
 
 import (
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
+	"strings"
+
+	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
-	"github.com/equinor/radix-tekton/pkg/configmap"
-	"github.com/equinor/radix-tekton/pkg/models"
-	log "github.com/sirupsen/logrus"
+	"github.com/equinor/radix-tekton/pkg/models/env"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 )
 
 //Context of the pipeline
 type Context interface {
+	GetEnv() env.Env
 	ProcessRadixAppConfig() error
+	RunTektonPipelineJob() error
 }
 
 type pipelineContext struct {
-	radixClient      radixclient.Interface
-	kubeClient       kubernetes.Interface
-	tektonClient     tektonclient.Interface
-	env              models.Env
-	radixApplication *v1.RadixApplication
+	radixClient        radixclient.Interface
+	kubeClient         kubernetes.Interface
+	tektonClient       tektonclient.Interface
+	env                env.Env
+	radixApplication   *v1.RadixApplication
+	targetEnvironments map[string]bool
+	hash               string
 }
 
-//ProcessRadixAppConfig Load radixconfig.yaml to a ConfigMap and create RadixApplication
-func (ctx pipelineContext) ProcessRadixAppConfig() error {
-	configFileContent, err := configmap.CreateFromFile(ctx.kubeClient, ctx.env)
-	if err != nil {
-		log.Fatal("Error copying radixconfig.yaml and creating config map from file: %v", err)
-	}
-	ctx.radixApplication, err = steps.CreateRadixApplication(ctx.radixClient, configFileContent)
-	if err != nil {
-		return err
-	}
-	log.Debugln("RA loaded")
-
-	err = ctx.PrepareTektonPipelineJob()
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (ctx *pipelineContext) GetEnv() env.Env {
+	return ctx.env
 }
 
-func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, env models.Env) Context {
+func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, env env.Env) Context {
 	return &pipelineContext{
-		kubeClient:  kubeClient,
-		radixClient: radixClient,
-		env:         env,
+		kubeClient:   kubeClient,
+		radixClient:  radixClient,
+		tektonClient: tektonClient,
+		env:          env,
+		hash:         strings.ToLower(utils.RandStringStrSeed(5, env.GetRadixPipelineRun())),
 	}
 }

@@ -1,4 +1,4 @@
-package models
+package env
 
 import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -11,6 +11,10 @@ type env struct {
 
 func (e *env) GetAppNamespace() string {
 	return utils.GetAppNamespace(viper.GetString(defaults.RadixAppEnvironmentVariable))
+}
+
+func (e *env) GetAppName() string {
+	return viper.GetString(defaults.RadixAppEnvironmentVariable)
 }
 
 func (e *env) GetConfigMapName() string {
@@ -37,15 +41,28 @@ func (e *env) GetBranch() string {
 	return viper.GetString(defaults.RadixBranchEnvironmentVariable)
 }
 
+func (e *env) GetTektonAction() string {
+	return viper.GetString(defaults.RadixTektonActionEnvironmentVariable)
+}
+
+func (e *env) GetRadixPipelineJobName() string {
+	return viper.GetString(defaults.RadixPipelineJobEnvironmentVariable)
+}
+
 type Env interface {
+	GetAppName() string
 	GetAppNamespace() string
+	GetRadixPipelineJobName() string
 	GetConfigMapName() string
 	GetRadixConfigFileName() string
 	GetRadixPipelineType() string
 	GetRadixPipelineRun() string
+	GetRadixImageTag() string
 	GetBranch() string
+	GetTektonAction() string
 }
 
 func NewEnvironment() Env {
+	viper.AutomaticEnv()
 	return &env{}
 }

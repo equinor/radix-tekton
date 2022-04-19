@@ -6,14 +6,14 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/equinor/radix-tekton/pkg/models"
+	"github.com/equinor/radix-tekton/pkg/models/env"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // CreateFromFile Creates a configmap by name from file and returns as content
-func CreateFromFile(kubeClient kubernetes.Interface, env models.Env) (string, error) {
+func CreateFromFile(kubeClient kubernetes.Interface, env env.Env) (string, error) {
 	content, err := readConfigFile(env.GetRadixConfigFileName())
 	if err != nil {
 		return "", fmt.Errorf("could not find or read config yaml file \"%s\"", env.GetRadixConfigFileName())
