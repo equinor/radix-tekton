@@ -30,9 +30,7 @@ jobs:
         id: prep
         run: |
           branch=${GITHUB_REF##*/}
-          sha=${GITHUB_SHA::8}
-          ts=$(date +%s)
-          echo "::set-output name=BUILD_ID::${branch}-${sha}-${ts}"
+          echo "::set-output name=BUILD_ID::${branch}-latest"
       - name: 'Login to dev'
         uses: azure/login@v1
         with:
