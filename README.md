@@ -1,2 +1,2 @@
 # radix-tekton
-Radix Tekton CD pipeline runnner
+Radix Tekton CD pipeline runner
