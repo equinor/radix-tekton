@@ -13,9 +13,9 @@ import (
 
 //Context of the pipeline
 type Context interface {
-	GetEnv() env.Env
 	ProcessRadixAppConfig() error
 	RunTektonPipelineJob() error
+	GetEnv() env.Env
 }
 
 type pipelineContext struct {
@@ -32,12 +32,12 @@ func (ctx *pipelineContext) GetEnv() env.Env {
 	return ctx.env
 }
 
-func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, env env.Env) Context {
+func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, environment env.Env) Context {
 	return &pipelineContext{
 		kubeClient:   kubeClient,
 		radixClient:  radixClient,
 		tektonClient: tektonClient,
-		env:          env,
-		hash:         strings.ToLower(utils.RandStringStrSeed(5, env.GetRadixPipelineRun())),
+		env:          environment,
+		hash:         strings.ToLower(utils.RandStringStrSeed(5, environment.GetRadixPipelineRun())),
 	}
 }

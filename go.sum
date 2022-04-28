@@ -453,8 +453,8 @@ github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7
 github.com/envoyproxy/protoc-gen-validate v0.6.2/go.mod h1:2t7qjJNvHPx8IjnBOzl9E9/baC+qXE/TeeyBRzgJDws=
 github.com/equinor/radix-common v1.1.10 h1:7OVxj9gOStU9Ip7WadqtF9Amr02Htegvw1puJ9E0DQE=
 github.com/equinor/radix-common v1.1.10/go.mod h1:VlkqwYSQN2ANq/cwmuXlbohOPONK5FLLhMdKbjWHaQI=
-github.com/equinor/radix-operator v1.90.2 h1:RL8o54oLefknONVOoYliyTxQjDmJhmWsqeYD2DBAwaA=
-github.com/equinor/radix-operator v1.90.2/go.mod h1:FDIsCxeyr9f9dRdEFaqJFgSh2MCBjP4ZiqicWJ1VVzw=
+github.com/equinor/radix-operator v1.90.4 h1:jyNZVOrynXPwWuiai8z4XRRyCgNQ2ZUxDln64Jr/two=
+github.com/equinor/radix-operator v1.90.4/go.mod h1:DTJZ+O0piL9CLCXAocA6McifZGYEda42GgqSQCqpBxc=
 github.com/esimonov/ifshort v1.0.3/go.mod h1:yZqNJUrNn20K8Q9n2CrjTKYyVEmX209Hgu+M1LBpeZE=
 github.com/ettle/strcase v0.1.1/go.mod h1:hzDLsPC7/lwKyBOywSHEP89nt2pDgdy+No1NBA9o9VY=
 github.com/evanphx/json-patch v0.5.2/go.mod h1:ZWS5hhDbVDyob71nXKNL0+PWn6ToqBHMikGIFbs31qQ=

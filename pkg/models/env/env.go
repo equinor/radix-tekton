@@ -3,6 +3,7 @@ package env
 import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
@@ -49,6 +50,17 @@ func (e *env) GetRadixPipelineJobName() string {
 	return viper.GetString(defaults.RadixPipelineJobEnvironmentVariable)
 }
 
+func (e *env) GetLogLevel() log.Level {
+	switch viper.GetString("LOG_LEVEL") {
+	case "DEBUG":
+		return log.DebugLevel
+	case "ERROR":
+		return log.ErrorLevel
+	default:
+		return log.InfoLevel
+	}
+}
+
 type Env interface {
 	GetAppName() string
 	GetAppNamespace() string
@@ -60,6 +72,7 @@ type Env interface {
 	GetRadixImageTag() string
 	GetBranch() string
 	GetTektonAction() string
+	GetLogLevel() log.Level
 }
 
 func NewEnvironment() Env {

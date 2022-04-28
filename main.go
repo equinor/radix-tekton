@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-
 	"github.com/equinor/radix-tekton/pkg/kubernetes"
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/equinor/radix-tekton/pkg/pipeline"
@@ -10,18 +9,15 @@ import (
 )
 
 func main() {
+	environment := env.NewEnvironment()
+	setLogLevel(environment)
+
 	kubeClient, radixClient, tektonClient, err := kubernetes.GetClients()
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	env := env.NewEnvironment()
-
-	ctx := pipeline.NewPipelineContext(kubeClient, radixClient, tektonClient, env)
-
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	ctx := pipeline.NewPipelineContext(kubeClient, radixClient, tektonClient, environment)
 	err = runAction(ctx)
 	if err != nil {
 		log.Fatal(err.Error())
@@ -29,8 +25,15 @@ func main() {
 
 	log.Infof("Successfully completed")
 }
+
+func setLogLevel(environment env.Env) {
+	logLevel := environment.GetLogLevel()
+	log.SetLevel(logLevel)
+	log.Debugf("log-level '%s'", string(logLevel))
+}
 func runAction(ctx pipeline.Context) error {
 	action := ctx.GetEnv().GetTektonAction()
+	log.Infof("execute an action '%s'", action)
 	switch action {
 	case "prepare":
 		return ctx.ProcessRadixAppConfig()

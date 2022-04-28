@@ -3,6 +3,7 @@ package configmap
 import (
 	"context"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"strings"
 
@@ -36,7 +37,7 @@ func CreateFromFile(kubeClient kubernetes.Interface, env env.Env) (string, error
 	if err != nil {
 		return "", err
 	}
-
+	log.Debugf("Created ConfigMap '%s'", env.GetConfigMapName())
 	return configFileContent, nil
 }
 
