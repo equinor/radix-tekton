@@ -80,6 +80,14 @@ func (ctx pipelineContext) createTask(timestamp, namespace string) (*v1beta1.Tas
 				//        Args:    []string{"0"},
 				//    },
 				//},
+				{
+					Container: corev1.Container{
+						Name:    "task1-container3",
+						Image:   "bash:latest",
+						Command: []string{"sleep"},
+						Args:    []string{"5"},
+					},
+				},
 			},
 		},
 	}

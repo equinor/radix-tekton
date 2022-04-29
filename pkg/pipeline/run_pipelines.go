@@ -2,15 +2,20 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
+	tektonInformerFactory "github.com/tektoncd/pipeline/pkg/client/informers/externalversions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	//"k8s.io/client-go/1.5/tools/cache"
+	"k8s.io/client-go/tools/cache"
+	knativeApis "knative.dev/pkg/apis"
+	knative "knative.dev/pkg/apis/duck/v1beta1"
 )
 
 func (ctx pipelineContext) RunTektonPipelineJob() error {
@@ -101,77 +106,76 @@ func (ctx pipelineContext) WaitForCompletionOf(pipelineRuns map[string]*v1beta1.
 		return nil
 	}
 
-	//errChan := make(chan error)
+	errChan := make(chan error)
 
-	//kubeInformerFactory := tektonInformerFactory.NewSharedInformerFactory(ctx.tektonClient, time.Second*5)
-	//genericInformer, err := kubeInformerFactory.ForResource(v1beta1.SchemeGroupVersion.WithResource("pipelineruns"))
-	//if err != nil {
-	//    return err
-	//}
-	//informer := genericInformer.Informer()
-	//informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-	//    UpdateFunc: func(old, cur interface{}) {
-	//        run, success := cur.(*v1beta1.PipelineRun)
-	//        if !success {
-	//            return
-	//        }
-	//        pipelineRun, ok := pipelineRuns[run.GetName()]
-	//        if !ok {
-	//            return
-	//        }
-	//        if pipelineRun.GetName() == run.GetName() && pipelineRun.GetNamespace() == run.GetNamespace() && run.Status.PipelineRunStatusFields.CompletionTime != nil {
-	//            conditions := sortByTimestampDesc(run.Status.Conditions)
-	//            if len(conditions) == 0 {
-	//                return
-	//            }
-	//            delete(pipelineRuns, run.GetName())
-	//            lastCondition := conditions[0]
-	//            switch {
-	//            case lastCondition.IsTrue():
-	//                log.Infof("pipelineRun completed: %s", lastCondition.Message)
-	//            default:
-	//                log.Errorf("pipelineRun status reason %s. %s", lastCondition.Reason,
-	//                    lastCondition.Message)
-	//            }
-	//            if len(pipelineRuns) == 0 {
-	//                errChan <- nil
-	//            }
-	//        } else {
-	//            log.Debugf("Ongoing - PipelineRun has not completed yet")
-	//        }
-	//    },
-	//    DeleteFunc: func(old interface{}) {
-	//        run, success := old.(*v1beta1.PipelineRun)
-	//        if !success {
-	//            return
-	//        }
-	//        pipelineRun, ok := pipelineRuns[run.GetName()]
-	//        if !ok {
-	//            return
-	//        }
-	//        if pipelineRun.GetNamespace() == run.GetNamespace() {
-	//            delete(pipelineRuns, run.GetName())
-	//            errChan <- errors.New("PipelineRun failed - Job deleted")
-	//        }
-	//    },
-	//})
-	//go informer.Run(stop)
-	//if !cache.WaitForCacheSync(stop, informer.HasSynced) {
-	//    errChan <- fmt.Errorf("Timed out waiting for caches to sync")
-	//}
+	kubeInformerFactory := tektonInformerFactory.NewSharedInformerFactory(ctx.tektonClient, time.Second*5)
+	genericInformer, err := kubeInformerFactory.ForResource(v1beta1.SchemeGroupVersion.WithResource("pipelineruns"))
+	if err != nil {
+		return err
+	}
+	informer := genericInformer.Informer()
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(old, cur interface{}) {
+			run, success := cur.(*v1beta1.PipelineRun)
+			if !success {
+				return
+			}
+			pipelineRun, ok := pipelineRuns[run.GetName()]
+			if !ok {
+				return
+			}
+			if pipelineRun.GetName() == run.GetName() && pipelineRun.GetNamespace() == run.GetNamespace() && run.Status.PipelineRunStatusFields.CompletionTime != nil {
+				conditions := sortByTimestampDesc(run.Status.Conditions)
+				if len(conditions) == 0 {
+					return
+				}
+				delete(pipelineRuns, run.GetName())
+				lastCondition := conditions[0]
+				switch {
+				case lastCondition.IsTrue():
+					log.Infof("pipelineRun completed: %s", lastCondition.Message)
+				default:
+					log.Errorf("pipelineRun status reason %s. %s", lastCondition.Reason,
+						lastCondition.Message)
+				}
+				if len(pipelineRuns) == 0 {
+					errChan <- nil
+				}
+			} else {
+				log.Debugf("Ongoing - PipelineRun has not completed yet")
+			}
+		},
+		DeleteFunc: func(old interface{}) {
+			run, success := old.(*v1beta1.PipelineRun)
+			if !success {
+				return
+			}
+			pipelineRun, ok := pipelineRuns[run.GetName()]
+			if !ok {
+				return
+			}
+			if pipelineRun.GetNamespace() == run.GetNamespace() {
+				delete(pipelineRuns, run.GetName())
+				errChan <- errors.New("PipelineRun failed - Job deleted")
+			}
+		},
+	})
+	go informer.Run(stop)
+	if !cache.WaitForCacheSync(stop, informer.HasSynced) {
+		errChan <- fmt.Errorf("timed out waiting for caches to sync")
+	}
 
-	//err = <-errChan
-	//return err
-	return nil
+	err = <-errChan
+	return err
 }
 
-//func sortByTimestampDesc(conditions knative.Conditions) knative.Conditions {
-//    sort.Slice(conditions, func(i, j int) bool {
-//        return isC1BeforeC2(&conditions[j], &conditions[i])
-//    })
-//    return conditions
-//}
-//
-//func isC1BeforeC2(c1 *knativeApis.Condition, c2 *knativeApis.Condition) bool {
-//    return c1.LastTransitionTime.Inner.Before(&c2.LastTransitionTime.Inner)
-//}
+func sortByTimestampDesc(conditions knative.Conditions) knative.Conditions {
+	sort.Slice(conditions, func(i, j int) bool {
+		return isC1BeforeC2(&conditions[j], &conditions[i])
+	})
+	return conditions
+}
+
+func isC1BeforeC2(c1 *knativeApis.Condition, c2 *knativeApis.Condition) bool {
+	return c1.LastTransitionTime.Inner.Before(&c2.LastTransitionTime.Inner)
+}
