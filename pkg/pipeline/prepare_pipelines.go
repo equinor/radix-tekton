@@ -96,7 +96,7 @@ func (ctx pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *v
 	var tasks []v1beta1.Task
 	var validateTaskErrors []error
 	for _, pipelineSpecTask := range pipeline.Spec.Tasks {
-		task, taskExists := taskMap[pipelineSpecTask.Name]
+		task, taskExists := taskMap[pipelineSpecTask.TaskRef.Name]
 		if !taskExists {
 			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing task '%s'", pipelineSpecTask.Name))
 			continue
@@ -133,6 +133,9 @@ func validatePipeline(pipeline *v1beta1.Pipeline) error {
 					"https://tekton.dev/docs/pipelines/pipelines/#adding-tasks-to-the-pipeline",
 					i+1, pipelineSpecTask.Name))
 		}
+	}
+	if len(validationErrors) == 0 {
+		return nil
 	}
 	return commonErrors.Concat(validationErrors)
 }
