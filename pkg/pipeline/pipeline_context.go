@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	log "github.com/sirupsen/logrus"
 	"strings"
 
 	"github.com/equinor/radix-common/utils"
@@ -30,6 +31,21 @@ type pipelineContext struct {
 
 func (ctx *pipelineContext) GetEnv() env.Env {
 	return ctx.env
+}
+
+func (ctx *pipelineContext) GetKubeClient() kubernetes.Interface {
+	return ctx.kubeClient
+}
+
+func (ctx *pipelineContext) getEnvVars(string) v1.EnvVarsMap {
+	envVarsMap := make(v1.EnvVarsMap)
+	if ctx.radixApplication.Spec.Build != nil && ctx.radixApplication.Spec.Build.Variables != nil && len(ctx.radixApplication.Spec.Build.Variables) > 0 {
+		for name, envVar := range ctx.radixApplication.Spec.Build.Variables {
+			envVarsMap[name] = envVar
+		}
+		log.Debugf("Loaded %d radixApplication build variables", len(ctx.radixApplication.Spec.Build.Variables))
+	}
+	return envVarsMap
 }
 
 func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, environment env.Env) Context {

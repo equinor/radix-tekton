@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-tekton/pkg/defaults"
 	"sort"
 	"time"
 
@@ -21,7 +22,15 @@ import (
 func (ctx pipelineContext) RunTektonPipelineJob() error {
 	appName := ctx.env.GetAppName()
 	namespace := ctx.env.GetAppNamespace()
-	log.Infof("Run tekton pipelines")
+	radixApplication, err := ctx.createRadixApplicationFromConfigMap()
+	if err != nil {
+		return err
+	}
+	ctx.radixApplication = radixApplication
+	ctx.setTargetEnvironments()
+
+	log.Infof("Run tekton pipelines for the branch '%s'", ctx.env.GetBranch())
+
 	pipelineList, err := ctx.tektonClient.TektonV1beta1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixPipelineRunLabel, ctx.env.GetRadixPipelineRun()),
 	})
@@ -29,7 +38,7 @@ func (ctx pipelineContext) RunTektonPipelineJob() error {
 		return err
 	}
 
-	pipelineRunMap, err := ctx.runPipelines(pipelineList, namespace)
+	pipelineRunMap, err := ctx.runPipelines(pipelineList.Items, namespace)
 
 	if err != nil {
 		err = fmt.Errorf("failed to run pipelines: %w", err)
@@ -64,24 +73,34 @@ func (ctx pipelineContext) deletePipelineRuns(pipelineRunMap map[string]*v1beta1
 	return deleteErrors
 }
 
-func (ctx pipelineContext) runPipelines(pipelineList *v1beta1.PipelineList, namespace string) (map[string]*v1beta1.PipelineRun, error) {
+func (ctx pipelineContext) runPipelines(pipelines []v1beta1.Pipeline, namespace string) (map[string]*v1beta1.PipelineRun, error) {
 	timestamp := time.Now().Format("20060102150405")
 	pipelineRunMap := make(map[string]*v1beta1.PipelineRun)
-	var createPipelineError error
-	for _, pipeline := range pipelineList.Items {
-		pipelineRunName := fmt.Sprintf("tekton-pipeline-run-%s-%s-%s", timestamp, ctx.env.GetRadixImageTag(), ctx.hash)
+	var createPipelineErrors []error
+	for _, pipeline := range pipelines {
+		targetEnv, pipelineTargetEnvDefined := pipeline.ObjectMeta.Labels[kube.RadixEnvLabel]
+		if !pipelineTargetEnvDefined {
+			createPipelineErrors = append(createPipelineErrors, fmt.Errorf("missing target environment in labels of the pipeline '%s'", pipeline.Name))
+			continue
+		}
+		log.Debugf("run pipelinerun for the tarfeg-environment '%s'", targetEnv)
+		if _, ok := ctx.targetEnvironments[targetEnv]; !ok {
+			createPipelineErrors = append(createPipelineErrors, fmt.Errorf("missing target environment '%s' for the pipeline '%s'", targetEnv, pipeline.Name))
+			continue
+		}
+		originalPipelineName := pipeline.ObjectMeta.Annotations[defaults.PipelineNameAnnotation]
+		pipelineRunName := fmt.Sprintf("tkn-pr-%s-%s-%s-%s", targetEnv, originalPipelineName, timestamp, ctx.hash)
 		pipelineRun := v1beta1.PipelineRun{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   pipelineRunName,
-				Labels: ctx.getLabels(),
+				Labels: ctx.getLabels(targetEnv),
 				Annotations: map[string]string{
 					kube.RadixBranchAnnotation: ctx.env.GetBranch(),
 				},
 			},
 			Spec: v1beta1.PipelineRunSpec{
-				PipelineRef: &v1beta1.PipelineRef{
-					Name: pipeline.GetName(),
-				},
+				PipelineRef: &v1beta1.PipelineRef{Name: pipeline.GetName()},
+				Params:      ctx.getPipelineParams(targetEnv),
 			},
 		}
 		createdPipelineRun, err := ctx.tektonClient.TektonV1beta1().PipelineRuns(namespace).
@@ -90,11 +109,30 @@ func (ctx pipelineContext) runPipelines(pipelineList *v1beta1.PipelineList, name
 				&pipelineRun,
 				metav1.CreateOptions{})
 		if err != nil {
+			createPipelineErrors = append(createPipelineErrors, err)
 			break
 		}
 		pipelineRunMap[createdPipelineRun.GetName()] = createdPipelineRun
 	}
-	return pipelineRunMap, createPipelineError
+	if len(createPipelineErrors) > 0 {
+		return pipelineRunMap, commonErrors.Concat(createPipelineErrors)
+	}
+	return pipelineRunMap, nil
+}
+
+func (ctx pipelineContext) getPipelineParams(targetEnv string) []v1beta1.Param {
+	var pipelineParams []v1beta1.Param
+	envVars := ctx.getEnvVars(targetEnv)
+	for envVarName, envVarValue := range envVars {
+		pipelineParams = append(pipelineParams, v1beta1.Param{
+			Name: envVarName,
+			Value: v1beta1.ArrayOrString{
+				Type:      v1beta1.ParamTypeString,
+				StringVal: envVarValue,
+			},
+		})
+	}
+	return pipelineParams
 }
 
 // WaitForCompletionOf Will wait for job to complete

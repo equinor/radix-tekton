@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/equinor/radix-common v1.1.10
-	github.com/equinor/radix-operator v1.90.5
+	github.com/equinor/radix-operator v1.90.6
 	github.com/goccy/go-yaml v1.9.5
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.10.1
@@ -106,5 +106,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-//github.com/equinor/radix-operator => /home/user1/go/src/github.com/equinor/radix-operator
 replace k8s.io/client-go v1.5.2 => k8s.io/client-go v0.23.5

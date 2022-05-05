@@ -17,7 +17,6 @@ RUN go mod download
 # Copy project code
 COPY ./pkg ./pkg
 COPY ./main.go ./
-COPY ./go.* ./
 
 # Build
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-tekton
