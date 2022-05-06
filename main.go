@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/equinor/radix-tekton/pkg/kubernetes"
+	"github.com/equinor/radix-tekton/pkg/models"
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/equinor/radix-tekton/pkg/pipeline"
 	log "github.com/sirupsen/logrus"
@@ -31,7 +32,7 @@ func setLogLevel(environment env.Env) {
 	log.SetLevel(logLevel)
 	log.Debugf("log-level '%s'", string(logLevel))
 }
-func runAction(ctx pipeline.Context) error {
+func runAction(ctx models.Context) error {
 	action := ctx.GetEnv().GetTektonAction()
 	log.Infof("execute an action '%s'", action)
 	switch action {

@@ -2,10 +2,10 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
-	"github.com/equinor/radix-tekton/pkg/configmap"
 	log "github.com/sirupsen/logrus"
 )
 

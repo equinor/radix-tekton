@@ -3,7 +3,7 @@ package pipeline
 import (
 	"github.com/equinor/radix-operator/pipeline-runner/steps"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-tekton/pkg/configmap"
+	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 )
 
 func (ctx pipelineContext) createRadixApplicationFromContent(configFileContent string) (*v1.RadixApplication, error) {

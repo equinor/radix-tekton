@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/equinor/radix-tekton/pkg/defaults"
+	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"sort"
 	"strings"
 	"time"
@@ -20,7 +21,8 @@ import (
 	knative "knative.dev/pkg/apis/duck/v1beta1"
 )
 
-func (ctx pipelineContext) RunTektonPipelineJob() error {
+//RunTektonPipelineJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
+func (ctx *pipelineContext) RunTektonPipelineJob() error {
 	appName := ctx.env.GetAppName()
 	namespace := ctx.env.GetAppNamespace()
 	radixApplication, err := ctx.createRadixApplicationFromConfigMap()
@@ -63,7 +65,7 @@ func (ctx pipelineContext) RunTektonPipelineJob() error {
 	return nil
 }
 
-func (ctx pipelineContext) deletePipelineRuns(pipelineRunMap map[string]*v1beta1.PipelineRun, namespace string) []error {
+func (ctx *pipelineContext) deletePipelineRuns(pipelineRunMap map[string]*v1beta1.PipelineRun, namespace string) []error {
 	var deleteErrors []error
 	for _, pipelineRun := range pipelineRunMap {
 		log.Debugf("delete the pipeline-run '%s'", pipelineRun.Name)
@@ -77,7 +79,7 @@ func (ctx pipelineContext) deletePipelineRuns(pipelineRunMap map[string]*v1beta1
 	return deleteErrors
 }
 
-func (ctx pipelineContext) runPipelines(pipelines []v1beta1.Pipeline, namespace string) (map[string]*v1beta1.PipelineRun, error) {
+func (ctx *pipelineContext) runPipelines(pipelines []v1beta1.Pipeline, namespace string) (map[string]*v1beta1.PipelineRun, error) {
 	timestamp := time.Now().Format("20060102150405")
 	pipelineRunMap := make(map[string]*v1beta1.PipelineRun)
 	var errs []error
@@ -107,17 +109,18 @@ func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *v1beta
 	}
 
 	pipelineRun := ctx.buildPipelineRun(pipeline, targetEnv, timestamp)
+
 	return ctx.tektonClient.TektonV1beta1().PipelineRuns(namespace).Create(context.Background(), &pipelineRun, metav1.CreateOptions{})
 }
 
-func (ctx pipelineContext) buildPipelineRun(pipeline *v1beta1.Pipeline, targetEnv, timestamp string) v1beta1.PipelineRun {
+func (ctx *pipelineContext) buildPipelineRun(pipeline *v1beta1.Pipeline, targetEnv, timestamp string) v1beta1.PipelineRun {
 	originalPipelineName := pipeline.ObjectMeta.Annotations[defaults.PipelineNameAnnotation]
 	pipelineRunName := fmt.Sprintf("tkn-pr-%s-%s-%s-%s", targetEnv, originalPipelineName, timestamp, ctx.hash)
 	pipelineParams := ctx.getPipelineParams(pipeline, targetEnv)
 	pipelineRun := v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pipelineRunName,
-			Labels: ctx.getLabels(targetEnv),
+			Labels: labels.GetLabelsForEnvironment(ctx, targetEnv),
 			Annotations: map[string]string{
 				kube.RadixBranchAnnotation: ctx.env.GetBranch(),
 			},
@@ -127,10 +130,13 @@ func (ctx pipelineContext) buildPipelineRun(pipeline *v1beta1.Pipeline, targetEn
 			Params:      pipelineParams,
 		},
 	}
+	if ctx.ownerReference != nil {
+		pipelineRun.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
+	}
 	return pipelineRun
 }
 
-func (ctx pipelineContext) getPipelineParams(pipeline *v1beta1.Pipeline, targetEnv string) []v1beta1.Param {
+func (ctx *pipelineContext) getPipelineParams(pipeline *v1beta1.Pipeline, targetEnv string) []v1beta1.Param {
 	envVars := ctx.getEnvVars(targetEnv)
 	pipelineParamsMap := getPipelineParamSpecsMap(pipeline)
 	var pipelineParams []v1beta1.Param
@@ -162,7 +168,7 @@ func getPipelineParamSpecsMap(pipeline *v1beta1.Pipeline) map[string]v1beta1.Par
 }
 
 // WaitForCompletionOf Will wait for job to complete
-func (ctx pipelineContext) WaitForCompletionOf(pipelineRuns map[string]*v1beta1.PipelineRun) error {
+func (ctx *pipelineContext) WaitForCompletionOf(pipelineRuns map[string]*v1beta1.PipelineRun) error {
 	stop := make(chan struct{})
 	defer close(stop)
 
