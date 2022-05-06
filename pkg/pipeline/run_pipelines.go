@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"sort"
+	"strings"
 	"time"
 
 	commonErrors "github.com/equinor/radix-common/utils/errors"
@@ -27,7 +28,10 @@ func (ctx pipelineContext) RunTektonPipelineJob() error {
 		return err
 	}
 	ctx.radixApplication = radixApplication
-	ctx.setTargetEnvironments()
+	err = ctx.setTargetEnvironments()
+	if err != nil {
+		return err
+	}
 
 	log.Infof("Run tekton pipelines for the branch '%s'", ctx.env.GetBranch())
 
@@ -76,63 +80,85 @@ func (ctx pipelineContext) deletePipelineRuns(pipelineRunMap map[string]*v1beta1
 func (ctx pipelineContext) runPipelines(pipelines []v1beta1.Pipeline, namespace string) (map[string]*v1beta1.PipelineRun, error) {
 	timestamp := time.Now().Format("20060102150405")
 	pipelineRunMap := make(map[string]*v1beta1.PipelineRun)
-	var createPipelineErrors []error
+	var errs []error
 	for _, pipeline := range pipelines {
-		targetEnv, pipelineTargetEnvDefined := pipeline.ObjectMeta.Labels[kube.RadixEnvLabel]
-		if !pipelineTargetEnvDefined {
-			createPipelineErrors = append(createPipelineErrors, fmt.Errorf("missing target environment in labels of the pipeline '%s'", pipeline.Name))
-			continue
-		}
-		log.Debugf("run pipelinerun for the tarfeg-environment '%s'", targetEnv)
-		if _, ok := ctx.targetEnvironments[targetEnv]; !ok {
-			createPipelineErrors = append(createPipelineErrors, fmt.Errorf("missing target environment '%s' for the pipeline '%s'", targetEnv, pipeline.Name))
-			continue
-		}
-		originalPipelineName := pipeline.ObjectMeta.Annotations[defaults.PipelineNameAnnotation]
-		pipelineRunName := fmt.Sprintf("tkn-pr-%s-%s-%s-%s", targetEnv, originalPipelineName, timestamp, ctx.hash)
-		pipelineRun := v1beta1.PipelineRun{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   pipelineRunName,
-				Labels: ctx.getLabels(targetEnv),
-				Annotations: map[string]string{
-					kube.RadixBranchAnnotation: ctx.env.GetBranch(),
-				},
-			},
-			Spec: v1beta1.PipelineRunSpec{
-				PipelineRef: &v1beta1.PipelineRef{Name: pipeline.GetName()},
-				Params:      ctx.getPipelineParams(targetEnv),
-			},
-		}
-		createdPipelineRun, err := ctx.tektonClient.TektonV1beta1().PipelineRuns(namespace).
-			Create(context.
-				Background(),
-				&pipelineRun,
-				metav1.CreateOptions{})
+		createdPipelineRun, err := ctx.createPipelineRun(namespace, &pipeline, timestamp)
 		if err != nil {
-			createPipelineErrors = append(createPipelineErrors, err)
-			break
+			errs = append(errs, err)
+			continue
 		}
 		pipelineRunMap[createdPipelineRun.GetName()] = createdPipelineRun
 	}
-	if len(createPipelineErrors) > 0 {
-		return pipelineRunMap, commonErrors.Concat(createPipelineErrors)
+	if len(errs) > 0 {
+		return pipelineRunMap, commonErrors.Concat(errs)
 	}
 	return pipelineRunMap, nil
 }
 
-func (ctx pipelineContext) getPipelineParams(targetEnv string) []v1beta1.Param {
-	var pipelineParams []v1beta1.Param
-	envVars := ctx.getEnvVars(targetEnv)
-	for envVarName, envVarValue := range envVars {
-		pipelineParams = append(pipelineParams, v1beta1.Param{
-			Name: envVarName,
-			Value: v1beta1.ArrayOrString{
-				Type:      v1beta1.ParamTypeString,
-				StringVal: envVarValue,
+func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *v1beta1.Pipeline, timestamp string) (*v1beta1.PipelineRun, error) {
+	targetEnv, pipelineTargetEnvDefined := pipeline.ObjectMeta.Labels[kube.RadixEnvLabel]
+	if !pipelineTargetEnvDefined {
+		return nil, fmt.Errorf("missing target environment in labels of the pipeline '%s'", pipeline.Name)
+	}
+
+	log.Debugf("run pipelinerun for the tarfeg-environment '%s'", targetEnv)
+	if _, ok := ctx.targetEnvironments[targetEnv]; !ok {
+		return nil, fmt.Errorf("missing target environment '%s' for the pipeline '%s'", targetEnv, pipeline.Name)
+	}
+
+	pipelineRun := ctx.buildPipelineRun(pipeline, targetEnv, timestamp)
+	return ctx.tektonClient.TektonV1beta1().PipelineRuns(namespace).Create(context.Background(), &pipelineRun, metav1.CreateOptions{})
+}
+
+func (ctx pipelineContext) buildPipelineRun(pipeline *v1beta1.Pipeline, targetEnv, timestamp string) v1beta1.PipelineRun {
+	originalPipelineName := pipeline.ObjectMeta.Annotations[defaults.PipelineNameAnnotation]
+	pipelineRunName := fmt.Sprintf("tkn-pr-%s-%s-%s-%s", targetEnv, originalPipelineName, timestamp, ctx.hash)
+	pipelineParams := ctx.getPipelineParams(pipeline, targetEnv)
+	pipelineRun := v1beta1.PipelineRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   pipelineRunName,
+			Labels: ctx.getLabels(targetEnv),
+			Annotations: map[string]string{
+				kube.RadixBranchAnnotation: ctx.env.GetBranch(),
 			},
-		})
+		},
+		Spec: v1beta1.PipelineRunSpec{
+			PipelineRef: &v1beta1.PipelineRef{Name: pipeline.GetName()},
+			Params:      pipelineParams,
+		},
+	}
+	return pipelineRun
+}
+
+func (ctx pipelineContext) getPipelineParams(pipeline *v1beta1.Pipeline, targetEnv string) []v1beta1.Param {
+	envVars := ctx.getEnvVars(targetEnv)
+	pipelineParamsMap := getPipelineParamSpecsMap(pipeline)
+	var pipelineParams []v1beta1.Param
+	for envVarName, envVarValue := range envVars {
+		paramSpec, envVarExistInParamSpecs := pipelineParamsMap[envVarName]
+		if !envVarExistInParamSpecs {
+			continue //Add to pipelineRun params only env-vars, existing in the pipeline paramSpecs
+		}
+		param := v1beta1.Param{
+			Name:  envVarName,
+			Value: v1beta1.ArrayOrString{Type: paramSpec.Type},
+		}
+		if param.Value.Type == v1beta1.ParamTypeArray {
+			param.Value.ArrayVal = strings.Split(envVarValue, ",")
+		} else {
+			param.Value.StringVal = envVarValue
+		}
+		pipelineParams = append(pipelineParams, param)
 	}
 	return pipelineParams
+}
+
+func getPipelineParamSpecsMap(pipeline *v1beta1.Pipeline) map[string]v1beta1.ParamSpec {
+	paramSpecMap := make(map[string]v1beta1.ParamSpec)
+	for _, paramSpec := range pipeline.PipelineSpec().Params {
+		paramSpecMap[paramSpec.Name] = paramSpec
+	}
+	return paramSpecMap
 }
 
 // WaitForCompletionOf Will wait for job to complete

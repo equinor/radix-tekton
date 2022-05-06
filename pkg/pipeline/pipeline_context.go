@@ -37,15 +37,35 @@ func (ctx *pipelineContext) GetKubeClient() kubernetes.Interface {
 	return ctx.kubeClient
 }
 
-func (ctx *pipelineContext) getEnvVars(string) v1.EnvVarsMap {
+func (ctx *pipelineContext) getEnvVars(targetEnv string) v1.EnvVarsMap {
 	envVarsMap := make(v1.EnvVarsMap)
-	if ctx.radixApplication.Spec.Build != nil && ctx.radixApplication.Spec.Build.Variables != nil && len(ctx.radixApplication.Spec.Build.Variables) > 0 {
-		for name, envVar := range ctx.radixApplication.Spec.Build.Variables {
-			envVarsMap[name] = envVar
-		}
-		log.Debugf("Loaded %d radixApplication build variables", len(ctx.radixApplication.Spec.Build.Variables))
-	}
+	ctx.setPipelineRunParamsFromBuild(envVarsMap)
+	ctx.setPipelineRunParamsFromEnvironmentBuilds(targetEnv, envVarsMap)
 	return envVarsMap
+}
+
+func (ctx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap v1.EnvVarsMap) {
+	if ctx.radixApplication.Spec.Build == nil ||
+		ctx.radixApplication.Spec.Build.Variables == nil ||
+		len(ctx.radixApplication.Spec.Build.Variables) == 0 {
+		log.Debugln("No radixApplication build variables")
+		return
+	}
+
+	for name, envVar := range ctx.radixApplication.Spec.Build.Variables {
+		envVarsMap[name] = envVar
+	}
+}
+
+func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv string, envVarsMap v1.EnvVarsMap) {
+	for _, env := range ctx.radixApplication.Spec.Environments {
+		if !strings.EqualFold(env.Name, targetEnv) || env.Build.Variables == nil {
+			continue
+		}
+		for envVarName, envVarVal := range env.Build.Variables {
+			envVarsMap[envVarName] = envVarVal //Overrides common env-vars from Spec.Build, if any
+		}
+	}
 }
 
 func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, environment env.Env) Context {
