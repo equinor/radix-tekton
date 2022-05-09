@@ -178,7 +178,7 @@ func (ctx *pipelineContext) WaitForCompletionOf(pipelineRuns map[string]*v1beta1
 
 	errChan := make(chan error)
 
-	kubeInformerFactory := tektonInformerFactory.NewSharedInformerFactory(ctx.tektonClient, time.Second*5)
+	kubeInformerFactory := tektonInformerFactory.NewSharedInformerFactoryWithOptions(ctx.tektonClient, time.Second*5, tektonInformerFactory.WithNamespace(ctx.GetEnv().GetAppNamespace()))
 	genericInformer, err := kubeInformerFactory.ForResource(v1beta1.SchemeGroupVersion.WithResource("pipelineruns"))
 	if err != nil {
 		return err
