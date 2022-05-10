@@ -12,12 +12,11 @@ func GetLabelsForEnvironment(ctx models.Context, targetEnv string) map[string]st
 	appName := ctx.GetEnv().GetAppName()
 	imageTag := ctx.GetEnv().GetRadixImageTag()
 	return map[string]string{
-		kube.RadixAppLabel:         appName,
-		kube.RadixEnvLabel:         targetEnv,
-		kube.RadixJobTypeLabel:     kube.RadixJobTypeBuild,
-		kube.RadixJobNameLabel:     ctx.GetEnv().GetRadixPipelineJobName(),
-		kube.RadixPipelineRunLabel: ctx.GetEnv().GetRadixPipelineRun(),
-		kube.RadixBuildLabel:       fmt.Sprintf("%s-%s-%s", appName, imageTag, ctx.GetHash()),
-		kube.RadixImageTagLabel:    imageTag,
+		kube.RadixAppLabel:      appName,
+		kube.RadixEnvLabel:      targetEnv,
+		kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
+		kube.RadixJobNameLabel:  ctx.GetEnv().GetRadixPipelineJobName(),
+		kube.RadixBuildLabel:    fmt.Sprintf("%s-%s-%s", appName, imageTag, ctx.GetHash()),
+		kube.RadixImageTagLabel: imageTag,
 	}
 }

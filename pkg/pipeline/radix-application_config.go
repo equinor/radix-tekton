@@ -30,13 +30,7 @@ func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 
 	log.Debugln("Target environments have been loaded")
 
-	err = ctx.prepareTektonPipelineJob()
-	if err != nil {
-		return err
-	}
-	log.Debugln("Tekton pipelines have been loaded")
-
-	return nil
+	return ctx.prepareTektonPipelineJob()
 }
 
 func (ctx *pipelineContext) setTargetEnvironments() error {

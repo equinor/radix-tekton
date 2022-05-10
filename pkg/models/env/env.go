@@ -30,10 +30,6 @@ func (e *env) GetRadixPipelineType() string {
 	return viper.GetString(defaults.RadixPipelineTypeEnvironmentVariable)
 }
 
-func (e *env) GetRadixPipelineRun() string {
-	return viper.GetString(defaults.RadixPipelineRunEnvironmentVariable)
-}
-
 func (e *env) GetRadixImageTag() string {
 	return viper.GetString(defaults.RadixImageTagEnvironmentVariable)
 }
@@ -68,7 +64,6 @@ type Env interface {
 	GetConfigMapName() string
 	GetRadixConfigFileName() string
 	GetRadixPipelineType() string
-	GetRadixPipelineRun() string
 	GetRadixImageTag() string
 	GetBranch() string
 	GetTektonAction() string

@@ -80,7 +80,7 @@ func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient
 		radixClient:    radixClient,
 		tektonClient:   tektonClient,
 		env:            environment,
-		hash:           strings.ToLower(utils.RandStringStrSeed(5, environment.GetRadixPipelineRun())),
+		hash:           strings.ToLower(utils.RandStringStrSeed(5, environment.GetRadixPipelineJobName())),
 		ownerReference: ownerReference,
 	}
 }

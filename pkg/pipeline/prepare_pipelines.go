@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"os"
 	"path/filepath"
@@ -24,12 +25,10 @@ func (ctx *pipelineContext) prepareTektonPipelineJob() error {
 	var errs []error
 	for targetEnv := range ctx.targetEnvironments {
 		log.Debugf("create a pipeline for the environment '%s'", targetEnv)
-		createdPipeline, err := ctx.prepareTektonPipelineJobForTargetEnv(namespace, targetEnv, timestamp)
+		err := ctx.prepareTektonPipelineJobForTargetEnv(namespace, targetEnv, timestamp)
 		if err != nil {
 			errs = append(errs, err)
-			continue
 		}
-		log.Infof("created the pipeline '%s' for the environment '%s'", createdPipeline.Name, targetEnv)
 	}
 	if len(errs) > 0 {
 		return commonErrors.Concat(errs)
@@ -37,52 +36,49 @@ func (ctx *pipelineContext) prepareTektonPipelineJob() error {
 	return nil
 }
 
-func (ctx *pipelineContext) prepareTektonPipelineJobForTargetEnv(namespace, targetEnv, timestamp string) (*v1beta1.Pipeline, error) {
+func (ctx *pipelineContext) prepareTektonPipelineJobForTargetEnv(namespace, targetEnv, timestamp string) error {
 	pipelineFile := defaults.DefaultPipelineFileName //TODO - get pipeline for the targetEnv
 	pipelineFilePath, err := ctx.getPipelineFilePath(pipelineFile)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	pipelineFileExists, err := ctx.pipelineFileExists(pipelineFilePath)
-	if !pipelineFileExists {
-		log.Infof("There is no pipeline file: '%s'. Skip Tekton pipeline", pipelineFilePath)
-		return nil, nil
+	err = ctx.pipelineFileExists(pipelineFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Infof("There is no pipeline file: '%s'. Skip Tekton pipeline", pipelineFilePath)
+			return nil
+		}
+		return err
 	}
 
 	pipeline, err := ctx.getPipeline(pipelineFilePath)
 	if err != nil {
-		return nil, err
-	}
-	err = validatePipeline(pipeline)
-	if err != nil {
-		return nil, err
+		return err
 	}
 	log.Debugf("loaded a pipeline with %d tasks", len(pipeline.Spec.Tasks))
+
 	tasks, err := ctx.getPipelineTasks(pipelineFilePath, pipeline)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	log.Debug("all pipeline tasks found")
 	taskMap, err := ctx.createTasks(namespace, targetEnv, tasks, timestamp)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	createdPipeline, err := ctx.createPipeline(namespace, targetEnv, pipeline, taskMap, timestamp)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	//err = ownerreferences.UpdatePipelineTasksOwnerReferences(ctx, createdPipeline)
-	//if err != nil {
-	//    return nil, err
-	//}
-	return createdPipeline, nil
+	log.Infof("created the pipeline '%s' for the environment '%s'", createdPipeline.Name, targetEnv)
+	return nil
 }
 
-func (ctx *pipelineContext) pipelineFileExists(pipelineFilePath string) (bool, error) {
+func (ctx *pipelineContext) pipelineFileExists(pipelineFilePath string) error {
 	_, err := os.Stat(pipelineFilePath)
-	return !os.IsNotExist(err), err
+	return err
 }
 
 func (ctx *pipelineContext) createTasks(namespace string, targetEnv string, tasks []v1beta1.Task, timestamp string) (map[string]v1beta1.Task, error) {
@@ -173,7 +169,7 @@ func (ctx *pipelineContext) createPipeline(namespace string, targetEnv string, p
 	if len(setTaskRefErrors) > 0 {
 		return nil, commonErrors.Concat(setTaskRefErrors)
 	}
-	pipelineName := fmt.Sprintf("tkn-p-%s-%s-%s-%s", targetEnv, originalPipelineName, timestamp, ctx.hash)
+	pipelineName := fmt.Sprintf("tkn-pipeline-%s-%s-%s-%s", getShortName(targetEnv), getShortName(originalPipelineName), timestamp, ctx.hash)
 	pipeline.ObjectMeta.Name = pipelineName
 	pipeline.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, targetEnv)
 	pipeline.ObjectMeta.Annotations = map[string]string{
@@ -188,7 +184,7 @@ func (ctx *pipelineContext) createPipeline(namespace string, targetEnv string, p
 }
 
 func (ctx *pipelineContext) createTask(namespace, targetEnv, originalTaskName string, task v1beta1.Task, timestamp string) (*v1beta1.Task, error) {
-	taskName := fmt.Sprintf("tkn-t-%s-%s-%s-%s", targetEnv, originalTaskName, timestamp, ctx.hash)
+	taskName := fmt.Sprintf("tkn-task-%s-%s-%s-%s", getShortName(targetEnv), getShortName(originalTaskName), timestamp, ctx.hash)
 	task.ObjectMeta.Name = taskName
 	task.ObjectMeta.Annotations = map[string]string{defaults.PipelineTaskNameAnnotation: originalTaskName}
 	task.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, targetEnv)
@@ -197,6 +193,13 @@ func (ctx *pipelineContext) createTask(namespace, targetEnv, originalTaskName st
 	}
 	return ctx.tektonClient.TektonV1beta1().Tasks(namespace).Create(context.Background(), &task,
 		metav1.CreateOptions{})
+}
+
+func getShortName(name string) string {
+	if len(name) > 4 {
+		name = name[:4]
+	}
+	return fmt.Sprintf("%s-%s", name, strings.ToLower(utils.RandStringStrSeed(5, name)))
 }
 
 func (ctx *pipelineContext) getPipeline(pipelineFileName string) (*v1beta1.Pipeline, error) {
@@ -214,6 +217,10 @@ func (ctx *pipelineContext) getPipeline(pipelineFileName string) (*v1beta1.Pipel
 		return nil, fmt.Errorf("failed to load the pipeline from the file '%s': %v", pipelineFileName, err)
 	}
 	log.Debugf("loaded pipeline '%s'", pipelineFileName)
+	err = validatePipeline(&pipeline)
+	if err != nil {
+		return nil, err
+	}
 	return &pipeline, nil
 }
 

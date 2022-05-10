@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-tekton/pkg/defaults"
-	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"sort"
 	"strings"
 	"time"
 
 	commonErrors "github.com/equinor/radix-common/utils/errors"
+	radixDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-tekton/pkg/defaults"
+	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	log "github.com/sirupsen/logrus"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	tektonInformerFactory "github.com/tektoncd/pipeline/pkg/client/informers/externalversions"
@@ -38,7 +39,7 @@ func (ctx *pipelineContext) RunTektonPipelineJob() error {
 	log.Infof("Run tekton pipelines for the branch '%s'", ctx.env.GetBranch())
 
 	pipelineList, err := ctx.tektonClient.TektonV1beta1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixPipelineRunLabel, ctx.env.GetRadixPipelineRun()),
+		LabelSelector: fmt.Sprintf("%s=%s", radixDefaults.RadixPipelineJobEnvironmentVariable, ctx.env.GetRadixPipelineJobName()),
 	})
 	if err != nil {
 		return err
@@ -115,14 +116,15 @@ func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *v1beta
 
 func (ctx *pipelineContext) buildPipelineRun(pipeline *v1beta1.Pipeline, targetEnv, timestamp string) v1beta1.PipelineRun {
 	originalPipelineName := pipeline.ObjectMeta.Annotations[defaults.PipelineNameAnnotation]
-	pipelineRunName := fmt.Sprintf("tkn-pr-%s-%s-%s-%s", targetEnv, originalPipelineName, timestamp, ctx.hash)
+	pipelineRunName := fmt.Sprintf("tkn-pipelinerun-%s-%s-%s", getShortName(targetEnv), timestamp, ctx.hash)
 	pipelineParams := ctx.getPipelineParams(pipeline, targetEnv)
 	pipelineRun := v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   pipelineRunName,
 			Labels: labels.GetLabelsForEnvironment(ctx, targetEnv),
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation: ctx.env.GetBranch(),
+				kube.RadixBranchAnnotation:      ctx.env.GetBranch(),
+				defaults.PipelineNameAnnotation: originalPipelineName,
 			},
 		},
 		Spec: v1beta1.PipelineRunSpec{

@@ -30,7 +30,7 @@ func main() {
 func setLogLevel(environment env.Env) {
 	logLevel := environment.GetLogLevel()
 	log.SetLevel(logLevel)
-	log.Debugf("log-level '%s'", string(logLevel))
+	log.Debugf("log-level '%v'", logLevel)
 }
 func runAction(ctx models.Context) error {
 	action := ctx.GetEnv().GetTektonAction()
