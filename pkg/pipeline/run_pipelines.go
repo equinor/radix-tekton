@@ -9,7 +9,6 @@ import (
 	"time"
 
 	commonErrors "github.com/equinor/radix-common/utils/errors"
-	radixDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
@@ -24,8 +23,18 @@ import (
 
 //RunTektonPipelineJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
 func (ctx *pipelineContext) RunTektonPipelineJob() error {
-	appName := ctx.env.GetAppName()
 	namespace := ctx.env.GetAppNamespace()
+	pipelineList, err := ctx.tektonClient.TektonV1beta1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, ctx.env.GetRadixPipelineJobName()),
+	})
+	if err != nil {
+		return err
+	}
+	if len(pipelineList.Items) == 0 {
+		log.Infof("no pipelines exist, skip Tekton pipeline run.")
+		return nil
+	}
+
 	radixApplication, err := ctx.createRadixApplicationFromConfigMap()
 	if err != nil {
 		return err
@@ -37,13 +46,6 @@ func (ctx *pipelineContext) RunTektonPipelineJob() error {
 	}
 
 	log.Infof("Run tekton pipelines for the branch '%s'", ctx.env.GetBranch())
-
-	pipelineList, err := ctx.tektonClient.TektonV1beta1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", radixDefaults.RadixPipelineJobEnvironmentVariable, ctx.env.GetRadixPipelineJobName()),
-	})
-	if err != nil {
-		return err
-	}
 
 	pipelineRunMap, err := ctx.runPipelines(pipelineList.Items, namespace)
 
@@ -60,7 +62,7 @@ func (ctx *pipelineContext) RunTektonPipelineJob() error {
 	err = ctx.WaitForCompletionOf(pipelineRunMap)
 	if err != nil {
 		return fmt.Errorf("failed tekton pipelines, %v, for app '%s'. %w",
-			ctx.targetEnvironments, appName,
+			ctx.targetEnvironments, ctx.env.GetAppName(),
 			err)
 	}
 	return nil

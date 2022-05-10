@@ -24,7 +24,7 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	log.Infof("Successfully completed")
+	log.Infof("Completed")
 }
 
 func setLogLevel(environment env.Env) {
