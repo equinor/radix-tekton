@@ -1,17 +1,17 @@
 package pipeline
 
 import (
-	"github.com/equinor/radix-tekton/pkg/models"
-	ownerreferences "github.com/equinor/radix-tekton/pkg/utils/owner_references"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strings"
 
 	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"github.com/equinor/radix-tekton/pkg/models"
 	"github.com/equinor/radix-tekton/pkg/models/env"
+	ownerreferences "github.com/equinor/radix-tekton/pkg/utils/owner_references"
+	log "github.com/sirupsen/logrus"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 

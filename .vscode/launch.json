@@ -19,9 +19,9 @@
         "TO_ENVIRONMENT=prod",
         "RADIX_FILE_NAME=/home/user1/go/src/github.com/radix-mini-app/radixconfig.yaml",
         "RADIX_CONFIG_CONFIGMAP=radix-config-2-map-1",
-        "RADIX_PIPELINE_RUN=radix-pipeline-123456-abcde",
+        "JOB_NAME=radix-pipeline-123456-abcde",
         "DEBUG=true",
-        "RADIX_TEKTON_ACTION=prepare"
+        "RADIX_PIPELINE_ACTION=prepare"
       ]
     },
     { 
@@ -41,9 +41,9 @@
         "TO_ENVIRONMENT=prod",
         "RADIX_FILE_NAME=/home/user1/go/src/github.com/radix-mini-app/radixconfig.yaml",
         "RADIX_CONFIG_CONFIGMAP=radix-config-2-map-1",
-        "RADIX_PIPELINE_RUN=radix-pipeline-123456-abcde",
+        "JOB_NAME=radix-pipeline-123456-abcde",
         "DEBUG=true",
-        "RADIX_TEKTON_ACTION=prepare"
+        "RADIX_PIPELINE_ACTION=prepare"
       ]
     },
     {
@@ -58,9 +58,9 @@
         "BRANCH=main",
         "IMAGE_TAG=abcdef",
         "DEPLOYMENT_NAME=qa-etxkt-ac6rxchq",
-        "RADIX_PIPELINE_RUN=radix-pipeline-123456-abcde",
+        "JOB_NAME=radix-pipeline-123456-abcde",
         "DEBUG=true",
-        "RADIX_TEKTON_ACTION=run"
+        "RADIX_PIPELINE_ACTION=run"
       ]
     }
   ]

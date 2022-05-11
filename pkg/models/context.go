@@ -9,7 +9,7 @@ import (
 //Context of the pipeline
 type Context interface {
 	ProcessRadixAppConfig() error
-	RunTektonPipelineJob() error
+	RunPipelinesJob() error
 	GetEnv() env.Env
 	GetHash() string
 	GetKubeClient() kubernetes.Interface

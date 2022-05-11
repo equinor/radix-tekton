@@ -38,8 +38,8 @@ func (e *env) GetBranch() string {
 	return viper.GetString(defaults.RadixBranchEnvironmentVariable)
 }
 
-func (e *env) GetTektonAction() string {
-	return viper.GetString(defaults.RadixTektonActionEnvironmentVariable)
+func (e *env) GetPipelinesAction() string {
+	return viper.GetString(defaults.RadixPipelineActionEnvironmentVariable)
 }
 
 func (e *env) GetRadixPipelineJobName() string {
@@ -66,7 +66,7 @@ type Env interface {
 	GetRadixPipelineType() string
 	GetRadixImageTag() string
 	GetBranch() string
-	GetTektonAction() string
+	GetPipelinesAction() string
 	GetLogLevel() log.Level
 }
 

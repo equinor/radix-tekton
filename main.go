@@ -33,13 +33,13 @@ func setLogLevel(environment env.Env) {
 	log.Debugf("log-level '%v'", logLevel)
 }
 func runAction(ctx models.Context) error {
-	action := ctx.GetEnv().GetTektonAction()
+	action := ctx.GetEnv().GetPipelinesAction()
 	log.Infof("execute an action '%s'", action)
 	switch action {
 	case "prepare":
 		return ctx.ProcessRadixAppConfig()
 	case "run":
-		return ctx.RunTektonPipelineJob()
+		return ctx.RunPipelinesJob()
 	default:
 		return fmt.Errorf("unsupported action '%s'", action)
 	}

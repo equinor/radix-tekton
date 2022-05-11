@@ -22,7 +22,7 @@ import (
 )
 
 //RunTektonPipelineJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
-func (ctx *pipelineContext) RunTektonPipelineJob() error {
+func (ctx *pipelineContext) RunPipelinesJob() error {
 	namespace := ctx.env.GetAppNamespace()
 	pipelineList, err := ctx.tektonClient.TektonV1beta1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, ctx.env.GetRadixPipelineJobName()),
@@ -118,7 +118,7 @@ func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *v1beta
 
 func (ctx *pipelineContext) buildPipelineRun(pipeline *v1beta1.Pipeline, targetEnv, timestamp string) v1beta1.PipelineRun {
 	originalPipelineName := pipeline.ObjectMeta.Annotations[defaults.PipelineNameAnnotation]
-	pipelineRunName := fmt.Sprintf("tkn-pipelinerun-%s-%s-%s", getShortName(targetEnv), timestamp, ctx.hash)
+	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", getShortName(targetEnv), timestamp, ctx.hash)
 	pipelineParams := ctx.getPipelineParams(pipeline, targetEnv)
 	pipelineRun := v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
