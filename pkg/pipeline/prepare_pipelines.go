@@ -169,7 +169,7 @@ func (ctx *pipelineContext) createPipeline(namespace string, targetEnv string, p
 	if len(setTaskRefErrors) > 0 {
 		return nil, commonErrors.Concat(setTaskRefErrors)
 	}
-	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", getShortName(targetEnv), getShortName(originalPipelineName), timestamp, ctx.hash)
+	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", timestamp, ctx.hash, getShortName(targetEnv), getShortName(originalPipelineName))
 	pipeline.ObjectMeta.Name = pipelineName
 	pipeline.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, targetEnv)
 	pipeline.ObjectMeta.Annotations = map[string]string{
@@ -184,7 +184,7 @@ func (ctx *pipelineContext) createPipeline(namespace string, targetEnv string, p
 }
 
 func (ctx *pipelineContext) createTask(namespace, targetEnv, originalTaskName string, task v1beta1.Task, timestamp string) (*v1beta1.Task, error) {
-	taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(targetEnv), getShortName(originalTaskName), timestamp, ctx.hash)
+	taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", timestamp, ctx.hash, getShortName(targetEnv), getShortName(originalTaskName))
 	task.ObjectMeta.Name = taskName
 	task.ObjectMeta.Annotations = map[string]string{defaults.PipelineTaskNameAnnotation: originalTaskName}
 	task.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, targetEnv)
