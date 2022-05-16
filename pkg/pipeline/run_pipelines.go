@@ -118,7 +118,7 @@ func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *v1beta
 
 func (ctx *pipelineContext) buildPipelineRun(pipeline *v1beta1.Pipeline, targetEnv, timestamp string) v1beta1.PipelineRun {
 	originalPipelineName := pipeline.ObjectMeta.Annotations[defaults.PipelineNameAnnotation]
-	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", timestamp, ctx.hash, getShortName(targetEnv))
+	pipelineRunName := fmt.Sprintf("radix-pipelinerun-%s-%s-%s", getShortName(targetEnv), timestamp, ctx.hash)
 	pipelineParams := ctx.getPipelineParams(pipeline, targetEnv)
 	pipelineRun := v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
