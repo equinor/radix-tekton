@@ -116,6 +116,7 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing task %s", pipelineSpecTask.Name))
 			continue
 		}
+		validateTaskErrors = append(validateTaskErrors, validateTaskSecretRefDoesNotExist(&task)...)
 		tasks = append(tasks, task)
 	}
 	if len(validateTaskErrors) > 0 {
@@ -134,25 +135,6 @@ func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, er
 	}
 	configFolder := filepath.Dir(ctx.env.GetRadixConfigFileName())
 	return filepath.Join(configFolder, pipelineFile), nil
-}
-
-func validatePipeline(pipeline *v1beta1.Pipeline) error {
-	var validationErrors []error
-	if len(pipeline.Spec.Tasks) == 0 {
-		validationErrors = append(validationErrors, fmt.Errorf("missing tasks in the pipeline %s", pipeline.Name))
-	}
-	for i, pipelineSpecTask := range pipeline.Spec.Tasks {
-		if len(pipelineSpecTask.Name) == 0 || pipelineSpecTask.TaskRef == nil {
-			validationErrors = append(validationErrors,
-				fmt.Errorf("invalid task #%d %s: each Task within a Pipeline must have a valid name and a taskRef.\n"+
-					"https://tekton.dev/docs/pipelines/pipelines/#adding-tasks-to-the-pipeline",
-					i+1, pipelineSpecTask.Name))
-		}
-	}
-	if len(validationErrors) == 0 {
-		return nil
-	}
-	return commonErrors.Concat(validationErrors)
 }
 
 func (ctx *pipelineContext) createPipeline(namespace string, targetEnv string, pipeline *v1beta1.Pipeline, taskMap map[string]v1beta1.Task, timestamp string) (*v1beta1.Pipeline, error) {
