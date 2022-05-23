@@ -36,7 +36,7 @@ func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 func (ctx *pipelineContext) setTargetEnvironments() error {
 	branchIsMapped, targetEnvironments := applicationconfig.IsThereAnythingToDeployForRadixApplication(ctx.env.GetBranch(), ctx.radixApplication)
 	if !branchIsMapped {
-		return fmt.Errorf("no environments are mapped to the branch '%s'", ctx.env.GetBranch())
+		return fmt.Errorf("no environments are mapped to the branch %s", ctx.env.GetBranch())
 	}
 	ctx.targetEnvironments = make(map[string]bool)
 	for envName, isEnvTarget := range targetEnvironments {
@@ -44,7 +44,7 @@ func (ctx *pipelineContext) setTargetEnvironments() error {
 			ctx.targetEnvironments[envName] = true
 		}
 	}
-	log.Infof("Environment(s) %v are mapped to the branch '%s'.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())
+	log.Infof("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())
 	return nil
 }
 

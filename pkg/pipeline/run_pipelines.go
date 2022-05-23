@@ -45,7 +45,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return err
 	}
 
-	log.Infof("Run tekton pipelines for the branch '%s'", ctx.env.GetBranch())
+	log.Infof("Run tekton pipelines for the branch %s", ctx.env.GetBranch())
 
 	pipelineRunMap, err := ctx.runPipelines(pipelineList.Items, namespace)
 
@@ -61,7 +61,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 
 	err = ctx.WaitForCompletionOf(pipelineRunMap)
 	if err != nil {
-		return fmt.Errorf("failed tekton pipelines, %v, for app '%s'. %w",
+		return fmt.Errorf("failed tekton pipelines, %v, for app %s. %w",
 			ctx.targetEnvironments, ctx.env.GetAppName(),
 			err)
 	}
@@ -71,11 +71,11 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 func (ctx *pipelineContext) deletePipelineRuns(pipelineRunMap map[string]*v1beta1.PipelineRun, namespace string) []error {
 	var deleteErrors []error
 	for _, pipelineRun := range pipelineRunMap {
-		log.Debugf("delete the pipeline-run '%s'", pipelineRun.Name)
+		log.Debugf("delete the pipeline-run %s", pipelineRun.Name)
 		deleteErr := ctx.tektonClient.TektonV1beta1().PipelineRuns(namespace).
 			Delete(context.Background(), pipelineRun.GetName(), metav1.DeleteOptions{})
 		if deleteErr != nil {
-			log.Debugf("failed to delete the pipeline-run '%s'", pipelineRun.Name)
+			log.Debugf("failed to delete the pipeline-run %s", pipelineRun.Name)
 			deleteErrors = append(deleteErrors, deleteErr)
 		}
 	}
@@ -103,12 +103,12 @@ func (ctx *pipelineContext) runPipelines(pipelines []v1beta1.Pipeline, namespace
 func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *v1beta1.Pipeline, timestamp string) (*v1beta1.PipelineRun, error) {
 	targetEnv, pipelineTargetEnvDefined := pipeline.ObjectMeta.Labels[kube.RadixEnvLabel]
 	if !pipelineTargetEnvDefined {
-		return nil, fmt.Errorf("missing target environment in labels of the pipeline '%s'", pipeline.Name)
+		return nil, fmt.Errorf("missing target environment in labels of the pipeline %s", pipeline.Name)
 	}
 
-	log.Debugf("run pipelinerun for the tarfeg-environment '%s'", targetEnv)
+	log.Debugf("run pipelinerun for the tarfeg-environment %s", targetEnv)
 	if _, ok := ctx.targetEnvironments[targetEnv]; !ok {
-		return nil, fmt.Errorf("missing target environment '%s' for the pipeline '%s'", targetEnv, pipeline.Name)
+		return nil, fmt.Errorf("missing target environment %s for the pipeline %s", targetEnv, pipeline.Name)
 	}
 
 	pipelineRun := ctx.buildPipelineRun(pipeline, targetEnv, timestamp)

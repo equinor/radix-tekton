@@ -24,7 +24,7 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 	timestamp := time.Now().Format("20060102150405")
 	var errs []error
 	for targetEnv := range ctx.targetEnvironments {
-		log.Debugf("create a pipeline for the environment '%s'", targetEnv)
+		log.Debugf("create a pipeline for the environment %s", targetEnv)
 		err := ctx.preparePipelinesJobForTargetEnv(namespace, targetEnv, timestamp)
 		if err != nil {
 			errs = append(errs, err)
@@ -46,7 +46,7 @@ func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, targetEnv
 	err = ctx.pipelineFileExists(pipelineFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Infof("There is no Tekton pipeline file: '%s'. Skip Tekton pipeline", pipelineFilePath)
+			log.Infof("There is no Tekton pipeline file: %s. Skip Tekton pipeline", pipelineFilePath)
 			return nil
 		}
 		return err
@@ -72,7 +72,7 @@ func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, targetEnv
 	if err != nil {
 		return err
 	}
-	log.Infof("created the pipeline '%s' for the environment '%s'", createdPipeline.Name, targetEnv)
+	log.Infof("created the pipeline %s for the environment %s", createdPipeline.Name, targetEnv)
 	return nil
 }
 
@@ -92,7 +92,7 @@ func (ctx *pipelineContext) createTasks(namespace string, targetEnv string, task
 			continue
 		}
 		taskMap[originalTaskName] = *createdTask
-		log.Debugf("created the task '%s'", task.Name)
+		log.Debugf("created the task %s", task.Name)
 	}
 	if len(createTaskErrors) > 0 {
 		return nil, commonErrors.Concat(createTaskErrors)
@@ -113,7 +113,7 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 	for _, pipelineSpecTask := range pipeline.Spec.Tasks {
 		task, taskExists := taskMap[pipelineSpecTask.TaskRef.Name]
 		if !taskExists {
-			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing task '%s'", pipelineSpecTask.Name))
+			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing task %s", pipelineSpecTask.Name))
 			continue
 		}
 		tasks = append(tasks, task)
@@ -127,7 +127,7 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, error) {
 	if len(pipelineFile) == 0 {
 		pipelineFile = defaults.DefaultPipelineFileName
-		log.Debugf("Tekton pipeline file name is not specified, using the default file name '%s'", defaults.DefaultPipelineFileName)
+		log.Debugf("Tekton pipeline file name is not specified, using the default file name %s", defaults.DefaultPipelineFileName)
 	}
 	if strings.HasPrefix(pipelineFile, "/") {
 		pipelineFile = pipelineFile[1:] //Tekton pipeline file path is relative to the root repository folder (also config-folder)
@@ -139,12 +139,12 @@ func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, er
 func validatePipeline(pipeline *v1beta1.Pipeline) error {
 	var validationErrors []error
 	if len(pipeline.Spec.Tasks) == 0 {
-		validationErrors = append(validationErrors, fmt.Errorf("missing tasks in the pipeline '%s'", pipeline.Name))
+		validationErrors = append(validationErrors, fmt.Errorf("missing tasks in the pipeline %s", pipeline.Name))
 	}
 	for i, pipelineSpecTask := range pipeline.Spec.Tasks {
 		if len(pipelineSpecTask.Name) == 0 || pipelineSpecTask.TaskRef == nil {
 			validationErrors = append(validationErrors,
-				fmt.Errorf("invalid task #%d '%s': each Task within a Pipeline must have a valid name and a taskRef.\n"+
+				fmt.Errorf("invalid task #%d %s: each Task within a Pipeline must have a valid name and a taskRef.\n"+
 					"https://tekton.dev/docs/pipelines/pipelines/#adding-tasks-to-the-pipeline",
 					i+1, pipelineSpecTask.Name))
 		}
@@ -205,18 +205,18 @@ func getShortName(name string) string {
 func (ctx *pipelineContext) getPipeline(pipelineFileName string) (*v1beta1.Pipeline, error) {
 	pipelineFolder := filepath.Dir(pipelineFileName)
 	if _, err := os.Stat(pipelineFolder); os.IsNotExist(err) {
-		return nil, fmt.Errorf("missing pipeline folder: '%s'", pipelineFolder)
+		return nil, fmt.Errorf("missing pipeline folder: %s", pipelineFolder)
 	}
 	pipelineData, err := os.ReadFile(pipelineFileName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the pipeline file '%s': %v", pipelineFileName, err)
+		return nil, fmt.Errorf("failed to read the pipeline file %s: %v", pipelineFileName, err)
 	}
 	var pipeline v1beta1.Pipeline
 	err = yaml.Unmarshal(pipelineData, &pipeline)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load the pipeline from the file '%s': %v", pipelineFileName, err)
+		return nil, fmt.Errorf("failed to load the pipeline from the file %s: %v", pipelineFileName, err)
 	}
-	log.Debugf("loaded pipeline '%s'", pipelineFileName)
+	log.Debugf("loaded pipeline %s", pipelineFileName)
 	err = validatePipeline(&pipeline)
 	if err != nil {
 		return nil, err
@@ -227,12 +227,12 @@ func (ctx *pipelineContext) getPipeline(pipelineFileName string) (*v1beta1.Pipel
 func (ctx *pipelineContext) getTasks(pipelineFilePath string) (map[string]v1beta1.Task, error) {
 	pipelineFolder := filepath.Dir(pipelineFilePath)
 	if _, err := os.Stat(pipelineFolder); os.IsNotExist(err) {
-		return nil, fmt.Errorf("missing pipeline folder: '%s'", pipelineFolder)
+		return nil, fmt.Errorf("missing pipeline folder: %s", pipelineFolder)
 	}
 
 	fileNameList, err := filepath.Glob(filepath.Join(pipelineFolder, "*.yaml"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to scan pipeline folder '%s': %v", pipelineFolder, err)
+		return nil, fmt.Errorf("failed to scan pipeline folder %s: %v", pipelineFolder, err)
 	}
 	fileMap := make(map[interface{}]interface{})
 	taskMap := make(map[string]v1beta1.Task)
@@ -242,20 +242,20 @@ func (ctx *pipelineContext) getTasks(pipelineFilePath string) (map[string]v1beta
 		}
 		fileData, err := os.ReadFile(fileName)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read the file '%s': %v", fileName, err)
+			return nil, fmt.Errorf("failed to read the file %s: %v", fileName, err)
 		}
 		err = yaml.Unmarshal(fileData, &fileMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read data from the file '%s': %v", fileName, err)
+			return nil, fmt.Errorf("failed to read data from the file %s: %v", fileName, err)
 		}
 		if !fileMapContainsTektonTask(fileMap) {
-			log.Debugf("skip the file '%s' - not a Tekton task", fileName)
+			log.Debugf("skip the file %s - not a Tekton task", fileName)
 			continue
 		}
 		var task v1beta1.Task
 		err = yaml.Unmarshal(fileData, &task)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load the task from the file '%s': %v", fileData, err)
+			return nil, fmt.Errorf("failed to load the task from the file %s: %v", fileData, err)
 		}
 		taskMap[task.Name] = task
 	}

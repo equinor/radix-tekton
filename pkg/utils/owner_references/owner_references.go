@@ -28,14 +28,14 @@ func GetOwnerReferenceOfJobFromLabels() *metav1.OwnerReference {
 
 func getOwnerReferencePropertiesFromDownwardsApiFile() (string, string, error) {
 	labelsFile := "/pod-labels/labels"
-	log.Debugf("read pod-labels from the file '%s'", labelsFile)
+	log.Debugf("read pod-labels from the file %s", labelsFile)
 	if _, err := os.Stat(labelsFile); os.IsNotExist(err) {
-		return "", "", fmt.Errorf("missing the file with labels '%s' - ownerReference is not set to the pod", labelsFile)
+		return "", "", fmt.Errorf("missing the file with labels %s - ownerReference is not set to the pod", labelsFile)
 	}
 	file, err := os.Open(labelsFile)
 	defer file.Close()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read the labels file '%s': %v", labelsFile, err)
+		return "", "", fmt.Errorf("failed to read the labels file %s: %v", labelsFile, err)
 	}
 
 	labelsMap := make(map[string]string)
@@ -48,11 +48,11 @@ func getOwnerReferencePropertiesFromDownwardsApiFile() (string, string, error) {
 	}
 	controllerUid, ok := labelsMap["controller-uid"]
 	if !ok || len(controllerUid) == 0 {
-		return "", "", fmt.Errorf("missing the 'controller-uid' label in the file with labels '%s' - ownerReference is not set to the pod", labelsFile)
+		return "", "", fmt.Errorf("missing the 'controller-uid' label in the file with labels %s - ownerReference is not set to the pod", labelsFile)
 	}
 	jobName, ok := labelsMap["job-name"]
 	if !ok {
-		return "", "", fmt.Errorf("missing the 'job-name' label in the file with labels '%s' - ownerReference is not set to the pod", labelsFile)
+		return "", "", fmt.Errorf("missing the 'job-name' label in the file with labels %s - ownerReference is not set to the pod", labelsFile)
 	}
 	return controllerUid, jobName, nil
 }

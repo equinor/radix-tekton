@@ -38,7 +38,7 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 	if err != nil {
 		return "", err
 	}
-	log.Debugf("Created ConfigMap '%s'", env.GetConfigMapName())
+	log.Debugf("Created ConfigMap %s", env.GetConfigMapName())
 	return configFileContent, nil
 }
 
@@ -47,7 +47,7 @@ func GetRadixConfigFromConfigMap(kubeClient kubernetes.Interface, namespace, con
 	configMap, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return "", fmt.Errorf("no ConfigMap '%s'", configMapName)
+			return "", fmt.Errorf("no ConfigMap %s", configMapName)
 		}
 		return "", err
 	}
@@ -62,7 +62,7 @@ func GetRadixConfigFromConfigMap(kubeClient kubernetes.Interface, namespace, con
 }
 
 func getNoRadixConfigInConfigMap(configMapName string) error {
-	return fmt.Errorf("no RadixConfig in the ConfigMap '%s'", configMapName)
+	return fmt.Errorf("no RadixConfig in the ConfigMap %s", configMapName)
 }
 
 func readConfigFile(filename string) ([]byte, error) {
