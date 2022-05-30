@@ -8,10 +8,16 @@ import (
 
 //Context of the pipeline
 type Context interface {
+	//ProcessRadixAppConfig Load radixconfig.yaml to a ConfigMap and create RadixApplication
 	ProcessRadixAppConfig() error
+	//RunPipelinesJob un the job, which creates Tekton PipelineRun-s
 	RunPipelinesJob() error
+	//GetEnv Environment for the pipeline
 	GetEnv() env.Env
+	//GetHash Hash, common for all pipeline Kubernetes object names
 	GetHash() string
+	//GetKubeClient Kubernetes client
 	GetKubeClient() kubernetes.Interface
+	//GetTektonClient Tekton client
 	GetTektonClient() tektonclient.Interface
 }

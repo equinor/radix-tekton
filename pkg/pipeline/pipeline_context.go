@@ -73,6 +73,7 @@ func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv 
 	}
 }
 
+//NewPipelineContext Create new NewPipelineContext instance
 func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, environment env.Env) models.Context {
 	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
 	return &pipelineContext{

@@ -12,6 +12,7 @@ import (
 	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-tekton/pkg/defaults"
+	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
@@ -116,7 +117,7 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing task %s", pipelineSpecTask.Name))
 			continue
 		}
-		validateTaskErrors = append(validateTaskErrors, validateTaskSecretRefDoesNotExist(&task)...)
+		validateTaskErrors = append(validateTaskErrors, validation.ValidateTask(&task)...)
 		tasks = append(tasks, task)
 	}
 	if len(validateTaskErrors) > 0 {
@@ -199,7 +200,7 @@ func (ctx *pipelineContext) getPipeline(pipelineFileName string) (*v1beta1.Pipel
 		return nil, fmt.Errorf("failed to load the pipeline from the file %s: %v", pipelineFileName, err)
 	}
 	log.Debugf("loaded pipeline %s", pipelineFileName)
-	err = validatePipeline(&pipeline)
+	err = validation.ValidatePipeline(&pipeline)
 	if err != nil {
 		return nil, err
 	}

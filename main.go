@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-tekton/pkg/kubernetes"
 	"github.com/equinor/radix-tekton/pkg/models"
 	"github.com/equinor/radix-tekton/pkg/models/env"
@@ -36,9 +38,9 @@ func runAction(ctx models.Context) error {
 	action := ctx.GetEnv().GetPipelinesAction()
 	log.Infof("execute an action %s", action)
 	switch action {
-	case "prepare":
+	case pipelineDefaults.RadixPipelineActionPrepare:
 		return ctx.ProcessRadixAppConfig()
-	case "run":
+	case pipelineDefaults.RadixPipelineActionRun:
 		return ctx.RunPipelinesJob()
 	default:
 		return fmt.Errorf("unsupported action %s", action)

@@ -21,7 +21,7 @@ import (
 	knative "knative.dev/pkg/apis/duck/v1beta1"
 )
 
-//RunTektonPipelineJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
+//RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
 func (ctx *pipelineContext) RunPipelinesJob() error {
 	namespace := ctx.env.GetAppNamespace()
 	pipelineList, err := ctx.tektonClient.TektonV1beta1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
@@ -153,7 +153,7 @@ func (ctx *pipelineContext) getPipelineParams(pipeline *v1beta1.Pipeline, target
 			Name:  envVarName,
 			Value: v1beta1.ArrayOrString{Type: paramSpec.Type},
 		}
-		if param.Value.Type == v1beta1.ParamTypeArray {
+		if param.Value.Type == v1beta1.ParamTypeArray { //Param can contain a string value or a comma-separated values array
 			param.Value.ArrayVal = strings.Split(envVarValue, ",")
 		} else {
 			param.Value.StringVal = envVarValue
@@ -245,11 +245,11 @@ func (ctx *pipelineContext) WaitForCompletionOf(pipelineRuns map[string]*v1beta1
 
 func sortByTimestampDesc(conditions knative.Conditions) knative.Conditions {
 	sort.Slice(conditions, func(i, j int) bool {
-		return isC1BeforeC2(&conditions[j], &conditions[i])
+		return isCondition1BeforeCondition2(&conditions[j], &conditions[i])
 	})
 	return conditions
 }
 
-func isC1BeforeC2(c1 *knativeApis.Condition, c2 *knativeApis.Condition) bool {
+func isCondition1BeforeCondition2(c1 *knativeApis.Condition, c2 *knativeApis.Condition) bool {
 	return c1.LastTransitionTime.Inner.Before(&c2.LastTransitionTime.Inner)
 }
