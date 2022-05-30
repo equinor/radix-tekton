@@ -1,8 +1,6 @@
 package labels
 
 import (
-	"fmt"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-tekton/pkg/models"
 )
@@ -14,9 +12,7 @@ func GetLabelsForEnvironment(ctx models.Context, targetEnv string) map[string]st
 	return map[string]string{
 		kube.RadixAppLabel:      appName,
 		kube.RadixEnvLabel:      targetEnv,
-		kube.RadixJobTypeLabel:  kube.RadixJobTypeBuild,
 		kube.RadixJobNameLabel:  ctx.GetEnv().GetRadixPipelineJobName(),
-		kube.RadixBuildLabel:    fmt.Sprintf("%s-%s-%s", appName, imageTag, ctx.GetHash()),
 		kube.RadixImageTagLabel: imageTag,
 	}
 }
