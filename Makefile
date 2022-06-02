@@ -3,7 +3,6 @@ VERSION 	?= latest
 
 DNS_ZONE = dev.radix.equinor.com
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
-VAULT_NAME ?= radix-vault-$(ENVIRONMENT)
 
 # If you want to escape branch-environment constraint, pass in OVERRIDE_BRANCH=true
 
@@ -11,14 +10,6 @@ ifeq ($(ENVIRONMENT),prod)
 	IS_PROD = yes
 else
 	IS_DEV = yes
-endif
-
-ifeq ($(BRANCH),release)
-	IS_PROD_BRANCH = yes
-endif
-
-ifeq ($(BRANCH),main)
-	IS_DEV_BRANCH = yes
 endif
 
 ifdef IS_DEV
@@ -46,8 +37,6 @@ echo:
 	@echo "CLUSTER_NAME : " $(CLUSTER_NAME)
 	@echo "IS_PROD : " $(IS_PROD)
 	@echo "IS_DEV : " $(IS_DEV)
-	@echo "IS_PROD_BRANCH : " $(IS_PROD_BRANCH)
-	@echo "IS_DEV_BRANCH : " $(IS_DEV_BRANCH)
 	@echo "VERSION : " $(VERSION)
 	@echo "TAG : " $(TAG)
 

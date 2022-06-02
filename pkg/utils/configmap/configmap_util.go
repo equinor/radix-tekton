@@ -3,7 +3,9 @@ package configmap
 import (
 	"context"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
 	"github.com/equinor/radix-tekton/pkg/models/env"
@@ -12,8 +14,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// CreateFromFile Creates a configmap by name from file and returns as content
-func CreateFromFile(kubeClient kubernetes.Interface, env env.Env) (string, error) {
+// CreateFromRadixConfigFile Creates a configmap by name from file and returns as content
+func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (string, error) {
 	content, err := readConfigFile(env.GetRadixConfigFileName())
 	if err != nil {
 		return "", fmt.Errorf("could not find or read config yaml file \"%s\"", env.GetRadixConfigFileName())
@@ -36,8 +38,31 @@ func CreateFromFile(kubeClient kubernetes.Interface, env env.Env) (string, error
 	if err != nil {
 		return "", err
 	}
-
+	log.Debugf("Created ConfigMap %s", env.GetConfigMapName())
 	return configFileContent, nil
+}
+
+//GetRadixConfigFromConfigMap Get Radix config from the ConfigMap
+func GetRadixConfigFromConfigMap(kubeClient kubernetes.Interface, namespace, configMapName string) (string, error) {
+	configMap, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), configMapName, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return "", fmt.Errorf("no ConfigMap %s", configMapName)
+		}
+		return "", err
+	}
+	if configMap.Data == nil {
+		return "", getNoRadixConfigInConfigMap(configMapName)
+	}
+	content, ok := configMap.Data["content"]
+	if !ok {
+		return "", getNoRadixConfigInConfigMap(configMapName)
+	}
+	return content, nil
+}
+
+func getNoRadixConfigInConfigMap(configMapName string) error {
+	return fmt.Errorf("no RadixConfig in the ConfigMap %s", configMapName)
 }
 
 func readConfigFile(filename string) ([]byte, error) {
