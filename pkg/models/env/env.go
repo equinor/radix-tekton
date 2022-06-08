@@ -66,8 +66,8 @@ func (e *env) GetRadixPromoteFromEnvironment() string {
 	return viper.GetString(defaults.RadixPromoteFromEnvironmentEnvironmentVariable)
 }
 
-//GetRadixPromoteToEnvironment Radix pipeline promote deployment target environment name
-func (e *env) GetRadixPromoteToEnvironment() string {
+//GetRadixDeployToEnvironment Radix pipeline promote or deploy deployment target environment name
+func (e *env) GetRadixDeployToEnvironment() string {
 	return viper.GetString(defaults.RadixPromoteToEnvironmentEnvironmentVariable)
 }
 
@@ -93,7 +93,7 @@ type Env interface {
 	GetRadixPipelineType() v1.RadixPipelineType
 	GetRadixPromoteDeployment() string
 	GetRadixPromoteFromEnvironment() string
-	GetRadixPromoteToEnvironment() string
+	GetRadixDeployToEnvironment() string
 	GetRadixImageTag() string
 	GetBranch() string
 	GetPipelinesAction() string
