@@ -12,9 +12,6 @@ func ValidatePipeline(pipeline *v1beta1.Pipeline) error {
 
 	validationErrors = append(validationErrors, validatePipelineTasks(pipeline)...)
 
-	if len(validationErrors) == 0 {
-		return nil
-	}
 	return commonErrors.Concat(validationErrors)
 }
 
