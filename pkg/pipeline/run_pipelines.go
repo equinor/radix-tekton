@@ -94,10 +94,7 @@ func (ctx *pipelineContext) runPipelines(pipelines []v1beta1.Pipeline, namespace
 		}
 		pipelineRunMap[createdPipelineRun.GetName()] = createdPipelineRun
 	}
-	if len(errs) > 0 {
-		return pipelineRunMap, commonErrors.Concat(errs)
-	}
-	return pipelineRunMap, nil
+	return pipelineRunMap, commonErrors.Concat(errs)
 }
 
 func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *v1beta1.Pipeline, timestamp string) (*v1beta1.PipelineRun, error) {
@@ -106,7 +103,7 @@ func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *v1beta
 		return nil, fmt.Errorf("missing target environment in labels of the pipeline %s", pipeline.Name)
 	}
 
-	log.Debugf("run pipelinerun for the tarfeg-environment %s", targetEnv)
+	log.Debugf("run pipelinerun for the target environment %s", targetEnv)
 	if _, ok := ctx.targetEnvironments[targetEnv]; !ok {
 		return nil, fmt.Errorf("missing target environment %s for the pipeline %s", targetEnv, pipeline.Name)
 	}
