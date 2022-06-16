@@ -2,36 +2,51 @@ package validation
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 )
 
 //ValidateTask Validate task
 func ValidateTask(task *v1beta1.Task) []error {
-	return validateTaskSecretRefDoesNotExist(task)
+	errs := validateTaskSecretRefDoesNotExist(task)
+	errs = append(errs, validateTaskSteps(task)...)
+	return errs
+}
+
+func validateTaskSteps(task *v1beta1.Task) []error {
+	if len(task.Spec.Steps) == 0 {
+		return []error{fmt.Errorf("invalid task %s: step list is empty", task.GetName())}
+	}
+	return nil
 }
 
 func validateTaskSecretRefDoesNotExist(task *v1beta1.Task) []error {
 	for _, step := range task.Spec.Steps {
-		if containerEnvFromSourceHasSecretRef(step.Container.EnvFrom) ||
-			containerEnvVarHasSecretRef(step.Container.Env) {
+		if containerEnvFromSourceHasNonRadixSecretRef(step.EnvFrom) ||
+			containerEnvVarHasNonRadixSecretRef(step.Env) {
 			return errorTaskContainsSecretRef(task)
 		}
 	}
 	for _, sidecar := range task.Spec.Sidecars {
-		if containerEnvFromSourceHasSecretRef(sidecar.Container.EnvFrom) ||
-			containerEnvVarHasSecretRef(sidecar.Container.Env) {
+		if containerEnvFromSourceHasNonRadixSecretRef(sidecar.EnvFrom) ||
+			containerEnvVarHasNonRadixSecretRef(sidecar.Env) {
 			return errorTaskContainsSecretRef(task)
 		}
 	}
 	for _, volume := range task.Spec.Volumes {
-		if volume.Secret != nil { //TBD - probably some secrets can be allowed
+		if volume.Secret != nil {
+			if isRadixBuildSecret(volume.Secret.SecretName) {
+				continue
+			}
 			return errorTaskContainsSecretRef(task)
 		}
 	}
 	if task.Spec.StepTemplate != nil &&
-		(containerEnvFromSourceHasSecretRef(task.Spec.StepTemplate.EnvFrom) ||
-			containerEnvVarHasSecretRef(task.Spec.StepTemplate.Env)) {
+		(containerEnvFromSourceHasNonRadixSecretRef(task.Spec.StepTemplate.EnvFrom) ||
+			containerEnvVarHasNonRadixSecretRef(task.Spec.StepTemplate.Env)) {
 		return errorTaskContainsSecretRef(task)
 	}
 	return nil
@@ -41,20 +56,24 @@ func errorTaskContainsSecretRef(task *v1beta1.Task) []error {
 	return []error{fmt.Errorf("invalid task %s: references to secrets are not allowed", task.GetName())}
 }
 
-func containerEnvFromSourceHasSecretRef(envFromSources []corev1.EnvFromSource) bool {
+func containerEnvFromSourceHasNonRadixSecretRef(envFromSources []corev1.EnvFromSource) bool {
 	for _, source := range envFromSources {
 		if source.SecretRef != nil {
-			return true
+			return !isRadixBuildSecret(source.SecretRef.Name)
 		}
 	}
 	return false
 }
 
-func containerEnvVarHasSecretRef(envVars []corev1.EnvVar) bool {
+func containerEnvVarHasNonRadixSecretRef(envVars []corev1.EnvVar) bool {
 	for _, envVar := range envVars {
 		if envVar.ValueFrom != nil && envVar.ValueFrom.SecretKeyRef != nil {
-			return true
+			return !isRadixBuildSecret(envVar.ValueFrom.SecretKeyRef.Name)
 		}
 	}
 	return false
+}
+
+func isRadixBuildSecret(secretName string) bool {
+	return strings.EqualFold(secretName, defaults.SubstitutionRadixBuildSecretsTarget)
 }

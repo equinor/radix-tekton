@@ -31,10 +31,7 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 			errs = append(errs, err)
 		}
 	}
-	if len(errs) > 0 {
-		return commonErrors.Concat(errs)
-	}
-	return nil
+	return commonErrors.Concat(errs)
 }
 
 func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, targetEnv, timestamp string) error {
@@ -95,10 +92,7 @@ func (ctx *pipelineContext) createTasks(namespace string, targetEnv string, task
 		taskMap[originalTaskName] = *createdTask
 		log.Debugf("created the task %s", task.Name)
 	}
-	if len(createTaskErrors) > 0 {
-		return nil, commonErrors.Concat(createTaskErrors)
-	}
-	return taskMap, nil
+	return taskMap, commonErrors.Concat(createTaskErrors)
 }
 
 func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *v1beta1.Pipeline) ([]v1beta1.Task, error) {
@@ -114,16 +108,13 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 	for _, pipelineSpecTask := range pipeline.Spec.Tasks {
 		task, taskExists := taskMap[pipelineSpecTask.TaskRef.Name]
 		if !taskExists {
-			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing task %s", pipelineSpecTask.Name))
+			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing the pipeline task %s, referenced to the task %s", pipelineSpecTask.Name, pipelineSpecTask.TaskRef.Name))
 			continue
 		}
 		validateTaskErrors = append(validateTaskErrors, validation.ValidateTask(&task)...)
 		tasks = append(tasks, task)
 	}
-	if len(validateTaskErrors) > 0 {
-		return nil, commonErrors.Concat(validateTaskErrors)
-	}
-	return tasks, nil
+	return tasks, commonErrors.Concat(validateTaskErrors)
 }
 
 func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, error) {
@@ -227,6 +218,7 @@ func (ctx *pipelineContext) getTasks(pipelineFilePath string) (map[string]v1beta
 		if err != nil {
 			return nil, fmt.Errorf("failed to read the file %s: %v", fileName, err)
 		}
+		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixBuildSecretsSource, defaults.SubstitutionRadixBuildSecretsTarget))
 		err = yaml.Unmarshal(fileData, &fileMap)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read data from the file %s: %v", fileName, err)
