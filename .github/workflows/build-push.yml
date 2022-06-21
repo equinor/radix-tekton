@@ -3,7 +3,19 @@ on:
   push:
     branches: [main, release]
 permissions:
+  actions: read
+  checks: read
+  contents: read
+  deployments: read
   id-token: write
+  issues: read
+  discussions: read
+  packages: read
+  pages: read
+  pull-requests: read
+  repository-projects: read
+  security-events: read
+  statuses: read
 jobs:
   get-target-configs:
     name: Get target configs for branch
