@@ -40,8 +40,8 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return err
 	}
 	ctx.radixApplication = radixApplication
-	err = ctx.setTargetEnvironments()
-	if err != nil {
+	envIsValid, err := ctx.setTargetEnvironments()
+	if err != nil || !envIsValid {
 		return err
 	}
 
