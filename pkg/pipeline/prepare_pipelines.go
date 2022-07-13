@@ -13,6 +13,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
+	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
@@ -24,6 +25,12 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 	namespace := ctx.env.GetAppNamespace()
 	timestamp := time.Now().Format("20060102150405")
 	var errs []error
+
+	err := configmap.CreateFromGitRepository(ctx.kubeClient, ctx.env)
+	if err != nil {
+		return err
+	}
+
 	for targetEnv := range ctx.targetEnvironments {
 		log.Debugf("create a pipeline for the environment %s", targetEnv)
 		err := ctx.preparePipelinesJobForTargetEnv(namespace, targetEnv, timestamp)

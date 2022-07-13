@@ -11,7 +11,7 @@ func (ctx pipelineContext) createRadixApplicationFromContent(configFileContent s
 }
 
 func (ctx pipelineContext) createRadixApplicationFromConfigMap() (*v1.RadixApplication, error) {
-	configFileContent, err := configmap.GetRadixConfigFromConfigMap(ctx.GetKubeClient(), ctx.env.GetAppNamespace(), ctx.env.GetConfigMapName())
+	configFileContent, err := configmap.GetRadixConfigFromConfigMap(ctx.GetKubeClient(), ctx.env.GetAppNamespace(), ctx.env.GetRadixConfigMapName())
 	if err != nil {
 		return nil, err
 	}
