@@ -3,11 +3,12 @@ package configmap
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"strings"
+
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"strings"
 
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +32,8 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 				Namespace: env.GetAppNamespace(),
 			},
 			Data: map[string]string{
-				"content": configFileContent,
+				"tekton-pipeline": "true",
+				"content":         configFileContent,
 			},
 		},
 		metav1.CreateOptions{})
@@ -45,6 +47,9 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 
 func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error {
 	gitCommitHash, gitTags, err := git.GetGitCommitHashAndTags("/workspace/.git")
+	if err != nil {
+		return err
+	}
 
 	_, err = kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
 		context.Background(),
@@ -54,7 +59,6 @@ func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error
 				Namespace: env.GetAppNamespace(),
 			},
 			Data: map[string]string{
-				"tekton-pipeline": "true",
 				"git-commit-hash": gitCommitHash,
 				"git-commit-tags": fmt.Sprintf("(%s)", gitTags),
 			},
