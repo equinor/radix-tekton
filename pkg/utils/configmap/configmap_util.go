@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -59,8 +60,8 @@ func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error
 				Namespace: env.GetAppNamespace(),
 			},
 			Data: map[string]string{
-				"git-commit-hash": gitCommitHash,
-				"git-commit-tags": fmt.Sprintf("(%s)", gitTags),
+				defaults.RadixGitCommitHashKey: gitCommitHash,
+				defaults.RadixGitTagsKey: fmt.Sprintf("(%s)", gitTags),
 			},
 		},
 		metav1.CreateOptions{})
