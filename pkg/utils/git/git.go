@@ -8,6 +8,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 )
 
+// GetGitCommitHashAndTags returns the commit hash for the HEAD of the current branch in gitDir, as well as any git tags which point to this commit hash
 func GetGitCommitHashAndTags(gitDir string) (string, string, error) {
 
 	// Instantiate a new repository targeting the given path (the .git folder)
