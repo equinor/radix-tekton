@@ -2,9 +2,10 @@ package git
 
 import (
 	"encoding/hex"
+	"strings"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"strings"
 )
 
 func GetGitCommitHashAndTags(gitDir string) (string, string, error) {
@@ -27,7 +28,7 @@ func GetGitCommitHashAndTags(gitDir string) (string, string, error) {
 	}
 	var tagNames []string
 
-	// List all tags, both lightweight tags and annotated tags and see if some tag points to HEAD reference.
+	// List all tags, both lightweight tags and annotated tags and see if any tags point to HEAD reference.
 	err = tags.ForEach(func(t *plumbing.Reference) error {
 		revHash, err := r.ResolveRevision(plumbing.Revision(t.Name()))
 		if err != nil {
@@ -37,18 +38,24 @@ func GetGitCommitHashAndTags(gitDir string) (string, string, error) {
 			rawTagName := string(t.Name())
 			tagName := parseTagName(rawTagName)
 			tagNames = append(tagNames, tagName)
-			//matchingTags += fmt.Sprintf(" %s", t.Name())
 		}
 		return nil
 	})
+	if err != nil {
+		return "", "", err
+	}
+
 	hashBytes := ref.Hash()
-	return hex.EncodeToString(hashBytes[:]), strings.Join(tagNames, " "), nil
+	hashBytesString := hex.EncodeToString(hashBytes[:])
+	tagNamesString := strings.Join(tagNames, " ")
+
+	return hashBytesString, tagNamesString, nil
 }
 
-func parseTagName(rawTagName string) string { //"refs/tags/tag1"
+func parseTagName(rawTagName string) string {
 	prefixToRemove := "refs/tags/"
 	if rawTagName[:len(prefixToRemove)] == prefixToRemove {
 		return rawTagName[len(prefixToRemove):]
 	}
-	return rawTagName
+	return rawTagName // this line is expected to never be executed
 }
