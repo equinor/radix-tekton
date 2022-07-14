@@ -3,16 +3,17 @@ package configmap
 import (
 	"context"
 	"fmt"
+
 	"io/ioutil"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	operatorGit "github.com/equinor/radix-operator/pkg/apis/utils/git"
+	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/api/errors"
-
-	"github.com/equinor/radix-tekton/pkg/models/env"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -47,7 +48,7 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 }
 
 func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error {
-	gitCommitHash, gitTags, err := git.GetGitCommitHashAndTags("/workspace/.git")
+	gitCommitHash, gitTags, err := git.GetGitCommitHashAndTags(operatorGit.Workspace + "/.git")
 	if err != nil {
 		return err
 	}
@@ -61,7 +62,7 @@ func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error
 			},
 			Data: map[string]string{
 				defaults.RadixGitCommitHashKey: gitCommitHash,
-				defaults.RadixGitTagsKey: fmt.Sprintf("(%s)", gitTags),
+				defaults.RadixGitTagsKey:       fmt.Sprintf("(%s)", gitTags),
 			},
 		},
 		metav1.CreateOptions{})
