@@ -62,7 +62,7 @@ func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error
 			},
 			Data: map[string]string{
 				defaults.RadixGitCommitHashKey: gitCommitHash,
-				defaults.RadixGitTagsKey:       fmt.Sprintf("(%s)", gitTags),
+				defaults.RadixGitTagsKey:       gitTags,
 			},
 		},
 		metav1.CreateOptions{})
