@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/equinor/radix-common v1.1.12
-	github.com/equinor/radix-operator v1.21.10
+	github.com/equinor/radix-operator v1.21.11
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/goccy/go-yaml v1.9.5
 	github.com/sirupsen/logrus v1.8.1
