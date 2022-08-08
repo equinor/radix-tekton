@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	operatorGit "github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/equinor/radix-tekton/pkg/utils/git"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,12 +48,12 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 }
 
 func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error {
-	// gitCommitHash, gitTags, err := git.GetGitCommitHashAndTags(operatorGit.Workspace + "/.git")
-	// if err != nil {
-	// 	return err
-	// }
+	gitCommitHash, gitTags, err := git.GetGitCommitHashAndTags(operatorGit.Workspace + "/.git")
+	if err != nil {
+		return err
+	}
 
-	_, err := kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
+	_, err = kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
 		context.Background(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -59,10 +61,8 @@ func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error
 				Namespace: env.GetAppNamespace(),
 			},
 			Data: map[string]string{
-				// defaults.RadixGitCommitHashKey: gitCommitHash,
-				// defaults.RadixGitTagsKey:       gitTags,
-				defaults.RadixGitCommitHashKey: "",
-				defaults.RadixGitTagsKey:       "",
+				defaults.RadixGitCommitHashKey: gitCommitHash,
+				defaults.RadixGitTagsKey:       gitTags,
 			},
 		},
 		metav1.CreateOptions{})
