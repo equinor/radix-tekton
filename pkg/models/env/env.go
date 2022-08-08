@@ -11,6 +11,10 @@ import (
 type env struct {
 }
 
+func (e *env) GetGitConfigMapName() string {
+	return viper.GetString(defaults.RadixGitConfigMapEnvironmentVariable)
+}
+
 //GetAppNamespace Radix application app-namespace
 func (e *env) GetAppNamespace() string {
 	return utils.GetAppNamespace(viper.GetString(defaults.RadixAppEnvironmentVariable))
@@ -22,7 +26,7 @@ func (e *env) GetAppName() string {
 }
 
 //GetConfigMapName Name of a ConfigMap, where radixconfig.yaml will be saved during RadixPipelineActionPrepare action
-func (e *env) GetConfigMapName() string {
+func (e *env) GetRadixConfigMapName() string {
 	return viper.GetString(defaults.RadixConfigConfigMapEnvironmentVariable)
 }
 
@@ -88,7 +92,8 @@ type Env interface {
 	GetAppName() string
 	GetAppNamespace() string
 	GetRadixPipelineJobName() string
-	GetConfigMapName() string
+	GetRadixConfigMapName() string
+	GetGitConfigMapName() string
 	GetRadixConfigFileName() string
 	GetRadixPipelineType() v1.RadixPipelineType
 	GetRadixPromoteDeployment() string

@@ -3,13 +3,17 @@ package configmap
 import (
 	"context"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 
+	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	operatorGit "github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/equinor/radix-tekton/pkg/utils/git"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -26,11 +30,12 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 		context.Background(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      env.GetConfigMapName(),
+				Name:      env.GetRadixConfigMapName(),
 				Namespace: env.GetAppNamespace(),
 			},
 			Data: map[string]string{
-				"content": configFileContent,
+				"tekton-pipeline": "true",
+				"content":         configFileContent,
 			},
 		},
 		metav1.CreateOptions{})
@@ -38,8 +43,35 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 	if err != nil {
 		return "", err
 	}
-	log.Debugf("Created ConfigMap %s", env.GetConfigMapName())
+	log.Debugf("Created ConfigMap %s", env.GetRadixConfigMapName())
 	return configFileContent, nil
+}
+
+func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error {
+	gitCommitHash, gitTags, err := git.GetGitCommitHashAndTags(operatorGit.Workspace + "/.git")
+	if err != nil {
+		return err
+	}
+
+	_, err = kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
+		context.Background(),
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      env.GetGitConfigMapName(),
+				Namespace: env.GetAppNamespace(),
+			},
+			Data: map[string]string{
+				defaults.RadixGitCommitHashKey: gitCommitHash,
+				defaults.RadixGitTagsKey:       gitTags,
+			},
+		},
+		metav1.CreateOptions{})
+
+	if err != nil {
+		return err
+	}
+	log.Debugf("Created ConfigMap %s", env.GetRadixConfigMapName())
+	return nil
 }
 
 //GetRadixConfigFromConfigMap Get Radix config from the ConfigMap
