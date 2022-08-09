@@ -3,7 +3,6 @@ package configmap
 import (
 	"context"
 	"fmt"
-
 	"io/ioutil"
 	"strings"
 
@@ -48,7 +47,12 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 }
 
 func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error {
-	gitCommitHash, gitTags, err := git.GetGitCommitHashAndTags(operatorGit.Workspace + "/.git")
+	gitCommitHash, err := getGitCommitHash(env)
+	if err != nil {
+		return err
+	}
+
+	gitTags, err := git.GetGitCommitTags(operatorGit.Workspace+"/.git", gitCommitHash)
 	if err != nil {
 		return err
 	}
@@ -70,8 +74,22 @@ func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error
 	if err != nil {
 		return err
 	}
-	log.Debugf("Created ConfigMap %s", env.GetRadixConfigMapName())
+	log.Debugf("Created ConfigMap %s", env.GetGitConfigMapName())
 	return nil
+}
+
+func getGitCommitHash(e env.Env) (string, error) {
+	webhookCommitId := e.GetWebhookCommitId()
+	if webhookCommitId != "" {
+		log.Debugf("got git commit hash %s from env var %s", webhookCommitId, defaults.RadixGithubWebhookCommitId)
+		return webhookCommitId, nil
+	} else {
+		branchName := e.GetBranch()
+		log.Debugf("determining git commit hash of HEAD of branch %s", branchName)
+		gitCommitHash, err := git.GetGitCommitHashFromHead(operatorGit.Workspace+"/.git", branchName)
+		log.Debugf("got git commit hash %s from HEAD of branch %s", gitCommitHash, branchName)
+		return gitCommitHash, err
+	}
 }
 
 //GetRadixConfigFromConfigMap Get Radix config from the ConfigMap

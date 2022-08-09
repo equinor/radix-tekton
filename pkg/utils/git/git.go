@@ -2,30 +2,62 @@ package git
 
 import (
 	"encoding/hex"
+	"fmt"
+	log "github.com/sirupsen/logrus"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 )
 
-// GetGitCommitHashAndTags returns the commit hash for the HEAD of the current branch in gitDir, as well as any git tags which point to this commit hash
-func GetGitCommitHashAndTags(gitDir string) (string, string, error) {
+// GetGitCommitHashFromHead returns the commit hash for the HEAD of branchName in gitDir
+func GetGitCommitHashFromHead(gitDir string, branchName string) (string, error) {
 
-	// Instantiate a new repository targeting the given path (the .git folder)
 	r, err := git.PlainOpen(gitDir)
 	if err != nil {
-		return "", "", err
+		return "", err
+	}
+	log.Debugf("opened gitDir %s", gitDir)
+
+	// Get branchName hash
+	commitHash, err := getBranchCommitHash(r, branchName)
+	if err != nil {
+		return "", err
+	}
+	log.Debugf("resolved branch %s", branchName)
+
+	hashBytesString := hex.EncodeToString(commitHash[:])
+	return hashBytesString, nil
+}
+
+func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, error) {
+	// first, we try to resolve a local revision. If possible, this is best. This succeeds if code branch and config
+	// branch are the same
+	commitHash, err := r.ResolveRevision(plumbing.Revision(branchName))
+	if err != nil {
+		// on second try, we try to resolve the remote branch. This introduces a chance that the remote has been altered
+		// with new hash after initial clone
+		commitHash, err = r.ResolveRevision(plumbing.Revision(fmt.Sprintf("refs/remotes/origin/%s", branchName)))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return commitHash, nil
+}
+
+// GetGitCommitTags returns any git tags which point to commitHash
+func GetGitCommitTags(gitDir string, commitHashString string) (string, error) {
+
+	r, err := git.PlainOpen(gitDir)
+	if err != nil {
+		return "", err
 	}
 
-	// Get HEAD reference to use for comparison
-	ref, err := r.Head()
-	if err != nil {
-		return "", "", err
-	}
+	commitHash := plumbing.NewHash(commitHashString)
 
 	tags, err := r.Tags()
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	var tagNames []string
 
@@ -35,7 +67,7 @@ func GetGitCommitHashAndTags(gitDir string) (string, string, error) {
 		if err != nil {
 			return err
 		}
-		if *revHash == ref.Hash() {
+		if *revHash == commitHash {
 			rawTagName := string(t.Name())
 			tagName := parseTagName(rawTagName)
 			tagNames = append(tagNames, tagName)
@@ -43,14 +75,12 @@ func GetGitCommitHashAndTags(gitDir string) (string, string, error) {
 		return nil
 	})
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
-	hashBytes := ref.Hash()
-	hashBytesString := hex.EncodeToString(hashBytes[:])
 	tagNamesString := strings.Join(tagNames, " ")
 
-	return hashBytesString, tagNamesString, nil
+	return tagNamesString, nil
 }
 
 func parseTagName(rawTagName string) string {
