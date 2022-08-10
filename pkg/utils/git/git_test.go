@@ -96,11 +96,11 @@ func tearDownGitTest() {
 	}
 }
 
-func TestGetGitCommitHashFromHead_RadixAPI(t *testing.T) {
+func TestGetGitCommitHashFromHead_DummyRepo2(t *testing.T) {
 	gitDirPath := setupGitTest("test_data2.zip", "test_data2")
 
-	releaseBranchHeadCommitHash := "325d122b93358d48046f2616d0c9beb86c503bca"
-	commitHash, err := GetGitCommitHashFromHead(gitDirPath, "release")
+	releaseBranchHeadCommitHash := "a1ee44808de2a42d291b59fefb5c66b8ff6bf898"
+	commitHash, err := GetGitCommitHashFromHead(gitDirPath, "this-branch-is-only-remote")
 	assert.NoError(t, err)
 	assert.Equal(t, commitHash, releaseBranchHeadCommitHash)
 
