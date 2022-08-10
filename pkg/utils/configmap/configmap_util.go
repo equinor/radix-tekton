@@ -83,16 +83,15 @@ func getGitCommitHash(e env.Env) (string, error) {
 	if webhookCommitId != "" {
 		log.Debugf("got git commit hash %s from env var %s", webhookCommitId, defaults.RadixGithubWebhookCommitId)
 		return webhookCommitId, nil
-	} else {
-		branchName := e.GetBranch()
-		log.Debugf("determining git commit hash of HEAD of branch %s", branchName)
-		gitCommitHash, err := git.GetGitCommitHashFromHead(operatorGit.Workspace+"/.git", branchName)
-		log.Debugf("got git commit hash %s from HEAD of branch %s", gitCommitHash, branchName)
-		return gitCommitHash, err
 	}
+	branchName := e.GetBranch()
+	log.Debugf("determining git commit hash of HEAD of branch %s", branchName)
+	gitCommitHash, err := git.GetGitCommitHashFromHead(operatorGit.Workspace+"/.git", branchName)
+	log.Debugf("got git commit hash %s from HEAD of branch %s", gitCommitHash, branchName)
+	return gitCommitHash, err
 }
 
-//GetRadixConfigFromConfigMap Get Radix config from the ConfigMap
+// GetRadixConfigFromConfigMap Get Radix config from the ConfigMap
 func GetRadixConfigFromConfigMap(kubeClient kubernetes.Interface, namespace, configMapName string) (string, error) {
 	configMap, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {

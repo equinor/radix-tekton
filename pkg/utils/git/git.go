@@ -3,11 +3,11 @@ package git
 import (
 	"encoding/hex"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	log "github.com/sirupsen/logrus"
 )
 
 // GetGitCommitHashFromHead returns the commit hash for the HEAD of branchName in gitDir
