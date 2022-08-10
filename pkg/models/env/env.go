@@ -15,6 +15,10 @@ func (e *env) GetGitConfigMapName() string {
 	return viper.GetString(defaults.RadixGitConfigMapEnvironmentVariable)
 }
 
+func (e *env) GetWebhookCommitId() string {
+	return viper.GetString(defaults.RadixGithubWebhookCommitId)
+}
+
 //GetAppNamespace Radix application app-namespace
 func (e *env) GetAppNamespace() string {
 	return utils.GetAppNamespace(viper.GetString(defaults.RadixAppEnvironmentVariable))
@@ -94,6 +98,7 @@ type Env interface {
 	GetRadixPipelineJobName() string
 	GetRadixConfigMapName() string
 	GetGitConfigMapName() string
+	GetWebhookCommitId() string
 	GetRadixConfigFileName() string
 	GetRadixPipelineType() v1.RadixPipelineType
 	GetRadixPromoteDeployment() string
