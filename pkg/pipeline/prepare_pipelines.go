@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,9 +12,9 @@ import (
 	"github.com/equinor/radix-common/utils"
 	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
-	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
@@ -26,9 +27,11 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 	timestamp := time.Now().Format("20060102150405")
 	var errs []error
 
-	err := configmap.CreateFromGitRepository(ctx.kubeClient, ctx.env)
-	if err != nil {
-		return err
+	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
+		err := configmap.CreateFromGitRepository(ctx.kubeClient, ctx.env)
+		if err != nil {
+			return err
+		}
 	}
 
 	for targetEnv := range ctx.targetEnvironments {
