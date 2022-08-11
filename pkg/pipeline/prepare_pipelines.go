@@ -3,22 +3,24 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/equinor/radix-common/utils"
+	commonUtils "github.com/equinor/radix-common/utils"
 	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
+	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -94,6 +96,7 @@ func (ctx *pipelineContext) createTasks(namespace string, targetEnv string, task
 	taskMap := make(map[string]v1beta1.Task)
 	for _, task := range tasks {
 		originalTaskName := task.Name
+		ensureCorrectSecureContext(&task)
 		createdTask, err := ctx.createTask(namespace, targetEnv, originalTaskName, task, timestamp)
 		if err != nil {
 			createTaskErrors = append(createTaskErrors, err)
@@ -103,6 +106,24 @@ func (ctx *pipelineContext) createTasks(namespace string, targetEnv string, task
 		log.Debugf("created the task %s", task.Name)
 	}
 	return taskMap, commonErrors.Concat(createTaskErrors)
+}
+
+func ensureCorrectSecureContext(task *v1beta1.Task) {
+	for _, step := range task.Spec.Steps {
+		setNotElevatedPrivileges(step.SecurityContext)
+	}
+	for _, sidecar := range task.Spec.Sidecars {
+		setNotElevatedPrivileges(sidecar.SecurityContext)
+	}
+	setNotElevatedPrivileges(task.Spec.StepTemplate.SecurityContext)
+}
+
+func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
+	if securityContext == nil {
+		return
+	}
+	securityContext.RunAsNonRoot = commonUtils.BoolPtr(false)
+	securityContext.AllowPrivilegeEscalation = commonUtils.BoolPtr(false)
 }
 
 func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *v1beta1.Pipeline) ([]v1beta1.Task, error) {

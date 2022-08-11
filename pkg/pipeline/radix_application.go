@@ -6,11 +6,11 @@ import (
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 )
 
-func (ctx pipelineContext) createRadixApplicationFromContent(configFileContent string) (*v1.RadixApplication, error) {
+func (ctx *pipelineContext) createRadixApplicationFromContent(configFileContent string) (*v1.RadixApplication, error) {
 	return steps.CreateRadixApplication(ctx.radixClient, configFileContent)
 }
 
-func (ctx pipelineContext) createRadixApplicationFromConfigMap() (*v1.RadixApplication, error) {
+func (ctx *pipelineContext) createRadixApplicationFromConfigMap() (*v1.RadixApplication, error) {
 	configFileContent, err := configmap.GetRadixConfigFromConfigMap(ctx.GetKubeClient(), ctx.env.GetAppNamespace(), ctx.env.GetRadixConfigMapName())
 	if err != nil {
 		return nil, err
