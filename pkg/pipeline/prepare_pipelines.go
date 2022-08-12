@@ -115,7 +115,9 @@ func ensureCorrectSecureContext(task *v1beta1.Task) {
 	for _, sidecar := range task.Spec.Sidecars {
 		setNotElevatedPrivileges(sidecar.SecurityContext)
 	}
-	setNotElevatedPrivileges(task.Spec.StepTemplate.SecurityContext)
+	if task.Spec.StepTemplate != nil {
+		setNotElevatedPrivileges(task.Spec.StepTemplate.SecurityContext)
+	}
 }
 
 func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
