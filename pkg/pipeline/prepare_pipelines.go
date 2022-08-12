@@ -122,7 +122,8 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	if securityContext == nil {
 		return
 	}
-	securityContext.RunAsNonRoot = commonUtils.BoolPtr(false)
+	securityContext.RunAsNonRoot = commonUtils.BoolPtr(true)
+	securityContext.Privileged = commonUtils.BoolPtr(false)
 	securityContext.AllowPrivilegeEscalation = commonUtils.BoolPtr(false)
 }
 
