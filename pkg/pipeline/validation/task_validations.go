@@ -24,6 +24,9 @@ func validateTaskSteps(task *v1beta1.Task) []error {
 }
 
 func validateTaskSecretRefDoesNotExist(task *v1beta1.Task) []error {
+	if volumeHasHostPath(task) {
+		return errorTaskContainsHostPath(task)
+	}
 	for _, step := range task.Spec.Steps {
 		if containerEnvFromSourceHasNonRadixSecretRef(step.EnvFrom) ||
 			containerEnvVarHasNonRadixSecretRef(step.Env) {
@@ -52,8 +55,21 @@ func validateTaskSecretRefDoesNotExist(task *v1beta1.Task) []error {
 	return nil
 }
 
+func volumeHasHostPath(task *v1beta1.Task) bool {
+	for _, volume := range task.Spec.Volumes {
+		if volume.HostPath != nil {
+			return true
+		}
+	}
+	return false
+}
+
 func errorTaskContainsSecretRef(task *v1beta1.Task) []error {
 	return []error{fmt.Errorf("invalid task %s: references to secrets are not allowed", task.GetName())}
+}
+
+func errorTaskContainsHostPath(task *v1beta1.Task) []error {
+	return []error{fmt.Errorf("invalid task %s: HostPath is not allowed", task.GetName())}
 }
 
 func containerEnvFromSourceHasNonRadixSecretRef(envFromSources []corev1.EnvFromSource) bool {

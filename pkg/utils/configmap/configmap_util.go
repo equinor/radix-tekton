@@ -3,12 +3,13 @@ package configmap
 import (
 	"context"
 	"fmt"
-
 	"io/ioutil"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	operatorGit "github.com/equinor/radix-operator/pkg/apis/utils/git"
 	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/equinor/radix-tekton/pkg/utils/git"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -46,12 +47,17 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 }
 
 func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error {
-	// gitCommitHash, gitTags, err := git.GetGitCommitHashAndTags(operatorGit.Workspace + "/.git")
-	// if err != nil {
-	// 	return err
-	// }
+	gitCommitHash, err := getGitCommitHash(env)
+	if err != nil {
+		return err
+	}
 
-	_, err := kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
+	gitTags, err := git.GetGitCommitTags(operatorGit.Workspace+"/.git", gitCommitHash)
+	if err != nil {
+		return err
+	}
+
+	_, err = kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
 		context.Background(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -59,10 +65,8 @@ func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error
 				Namespace: env.GetAppNamespace(),
 			},
 			Data: map[string]string{
-				// defaults.RadixGitCommitHashKey: gitCommitHash,
-				// defaults.RadixGitTagsKey:       gitTags,
-				defaults.RadixGitCommitHashKey: "",
-				defaults.RadixGitTagsKey:       "",
+				defaults.RadixGitCommitHashKey: gitCommitHash,
+				defaults.RadixGitTagsKey:       gitTags,
 			},
 		},
 		metav1.CreateOptions{})
@@ -70,11 +74,24 @@ func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error
 	if err != nil {
 		return err
 	}
-	log.Debugf("Created ConfigMap %s", env.GetRadixConfigMapName())
+	log.Debugf("Created ConfigMap %s", env.GetGitConfigMapName())
 	return nil
 }
 
-//GetRadixConfigFromConfigMap Get Radix config from the ConfigMap
+func getGitCommitHash(e env.Env) (string, error) {
+	webhookCommitId := e.GetWebhookCommitId()
+	if webhookCommitId != "" {
+		log.Debugf("got git commit hash %s from env var %s", webhookCommitId, defaults.RadixGithubWebhookCommitId)
+		return webhookCommitId, nil
+	}
+	branchName := e.GetBranch()
+	log.Debugf("determining git commit hash of HEAD of branch %s", branchName)
+	gitCommitHash, err := git.GetGitCommitHashFromHead(operatorGit.Workspace+"/.git", branchName)
+	log.Debugf("got git commit hash %s from HEAD of branch %s", gitCommitHash, branchName)
+	return gitCommitHash, err
+}
+
+// GetRadixConfigFromConfigMap Get Radix config from the ConfigMap
 func GetRadixConfigFromConfigMap(kubeClient kubernetes.Interface, namespace, configMapName string) (string, error) {
 	configMap, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.Background(), configMapName, metav1.GetOptions{})
 	if err != nil {
