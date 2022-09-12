@@ -52,8 +52,7 @@ func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error
 		return err
 	}
 
-	gitTags, err := git.GetGitCommitTags("/Users/SSMOL/dev/equinor/radix-mini-app-with-tekton/.git", gitCommitHash)
-	//gitTags, err := git.GetGitCommitTags(operatorGit.Workspace+"/.git", gitCommitHash)
+	gitTags, err := git.GetGitCommitTags(operatorGit.Workspace+"/.git", gitCommitHash)
 	if err != nil {
 		return err
 	}
