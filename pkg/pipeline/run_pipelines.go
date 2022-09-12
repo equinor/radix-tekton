@@ -61,11 +61,20 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 
 	err = ctx.WaitForCompletionOf(pipelineRunMap)
 	if err != nil {
-		return fmt.Errorf("failed tekton pipelines, %v, for app %s. %w",
-			ctx.targetEnvironments, ctx.env.GetAppName(),
+		return fmt.Errorf("failed tekton pipelines for the application %s, for environment(s) %s. %w",
+			ctx.env.GetAppName(),
+			ctx.getTargetEnvsAsString(),
 			err)
 	}
 	return nil
+}
+
+func (ctx *pipelineContext) getTargetEnvsAsString() string {
+	var envs []string
+	for envName, _ := range ctx.targetEnvironments {
+		envs = append(envs, envName)
+	}
+	return strings.Join(envs, ", ")
 }
 
 func (ctx *pipelineContext) deletePipelineRuns(pipelineRunMap map[string]*v1beta1.PipelineRun, namespace string) []error {
@@ -202,6 +211,10 @@ func (ctx *pipelineContext) WaitForCompletionOf(pipelineRuns map[string]*v1beta1
 				}
 				delete(pipelineRuns, run.GetName())
 				lastCondition := conditions[0]
+				if strings.EqualFold(lastCondition.Reason, "Failed") {
+					errChan <- errors.New("PipelineRun failed")
+					return
+				}
 				switch {
 				case lastCondition.IsTrue():
 					log.Infof("pipelineRun completed: %s", lastCondition.Message)
