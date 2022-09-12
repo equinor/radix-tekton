@@ -127,6 +127,7 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	securityContext.RunAsNonRoot = commonUtils.BoolPtr(true)
 	securityContext.Privileged = commonUtils.BoolPtr(false)
 	securityContext.AllowPrivilegeEscalation = commonUtils.BoolPtr(false)
+	securityContext.Capabilities.Drop = []corev1.Capability{"ALL"}
 }
 
 func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *v1beta1.Pipeline) ([]v1beta1.Task, error) {
