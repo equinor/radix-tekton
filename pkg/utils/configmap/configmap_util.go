@@ -46,7 +46,7 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 	return configFileContent, nil
 }
 
-func CreateFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error {
+func CreateGitConfigFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error {
 	gitCommitHash, err := getGitCommitHash(env)
 	if err != nil {
 		return err

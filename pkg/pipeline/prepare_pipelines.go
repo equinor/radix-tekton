@@ -3,6 +3,8 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,10 +14,8 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
-	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
@@ -30,7 +30,7 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 	var errs []error
 
 	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
-		err := configmap.CreateFromGitRepository(ctx.kubeClient, ctx.env)
+		err := configmap.CreateGitConfigFromGitRepository(ctx.kubeClient, ctx.env)
 		if err != nil {
 			return err
 		}
@@ -47,8 +47,7 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 }
 
 func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, targetEnv, timestamp string) error {
-	pipelineFile := defaults.DefaultPipelineFileName //TODO - get pipeline for the targetEnv
-	pipelineFilePath, err := ctx.getPipelineFilePath(pipelineFile)
+	pipelineFilePath, err := ctx.getPipelineFilePath("") //TODO - get pipeline for the targetEnv
 	if err != nil {
 		return err
 	}
@@ -157,9 +156,7 @@ func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, er
 		pipelineFile = defaults.DefaultPipelineFileName
 		log.Debugf("Tekton pipeline file name is not specified, using the default file name %s", defaults.DefaultPipelineFileName)
 	}
-	if strings.HasPrefix(pipelineFile, "/") {
-		pipelineFile = pipelineFile[1:] //Tekton pipeline file path is relative to the root repository folder (also config-folder)
-	}
+	pipelineFile = strings.TrimPrefix(pipelineFile, "/") //Tekton pipeline folder currently is relative to the Radix config file repository folder
 	configFolder := filepath.Dir(ctx.env.GetRadixConfigFileName())
 	return filepath.Join(configFolder, pipelineFile), nil
 }

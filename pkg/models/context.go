@@ -8,7 +8,7 @@ import (
 
 //Context of the pipeline
 type Context interface {
-	//ProcessRadixAppConfig Load radixconfig.yaml to a ConfigMap and create RadixApplication
+	//ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
 	ProcessRadixAppConfig() error
 	//RunPipelinesJob un the job, which creates Tekton PipelineRun-s
 	RunPipelinesJob() error
