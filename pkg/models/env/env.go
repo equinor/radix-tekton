@@ -29,12 +29,12 @@ func (e *env) GetAppName() string {
 	return viper.GetString(defaults.RadixAppEnvironmentVariable)
 }
 
-//GetConfigMapName Name of a ConfigMap, where radixconfig.yaml will be saved during RadixPipelineActionPrepare action
+//GetConfigMapName Name of a ConfigMap, where Radix config file will be saved during RadixPipelineActionPrepare action
 func (e *env) GetRadixConfigMapName() string {
 	return viper.GetString(defaults.RadixConfigConfigMapEnvironmentVariable)
 }
 
-//GetRadixConfigFileName Name with path to the cloned radixconfig.yaml file to be saved to a ConfigMap
+//GetRadixConfigFileName Name with path to the cloned Radix config file file to be saved to a ConfigMap
 func (e *env) GetRadixConfigFileName() string {
 	return viper.GetString(defaults.RadixConfigFileEnvironmentVariable)
 }
