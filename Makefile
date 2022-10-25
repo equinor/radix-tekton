@@ -45,7 +45,7 @@ test:
 	go test -cover `go list ./... | grep -v 'pkg/client'`
 
 mocks:
-	mockgen -source ./pkg/models/env.go -destination ./pkg/mock/env_mock.go -package models
+	mockgen -source ./pkg/models/env/env.go -destination ./pkg/mock/env_mock.go -package models
 
 build:
 	docker build -t $(DOCKER_REGISTRY)/radix-tekton:$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(TAG) -f Dockerfile .
