@@ -3,6 +3,8 @@ package git
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/equinor/radix-common/utils/maps"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
@@ -28,6 +30,44 @@ func GetGitCommitHashFromHead(gitDir string, branchName string) (string, error) 
 
 	hashBytesString := hex.EncodeToString(commitHash[:])
 	return hashBytesString, nil
+}
+
+// GetGitAffectedFilesAndFoldersBetweenCommits returns the list of files and folders, affected between commits
+func GetGitAffectedFilesAndFoldersBetweenCommits(gitDir, beginCommit, endCommit string) ([]string, error) {
+
+	r, err := git.PlainOpen(gitDir)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("opened gitDir %s", gitDir)
+
+	cIter, err := r.Log(&git.LogOptions{
+		From:  plumbing.NewHash(beginCommit),
+		Order: git.LogOrderCommitterTime,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	fileNamesMap := make(map[string]bool)
+	// ... just iterates over the commits, printing it
+	err = cIter.ForEach(func(c *object.Commit) error {
+		fmt.Println(c.Hash)
+		files, err := c.Files()
+		if err != nil {
+			return err
+		}
+		files.ForEach(func(file *object.File) error {
+			fileNamesMap[file.Name] = true
+			return nil
+		})
+		if c.Hash.String() == endCommit {
+			cIter.Close()
+		}
+		return nil
+	})
+
+	return maps.GetKeysFromMap(fileNamesMap), nil
 }
 
 func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, error) {

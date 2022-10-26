@@ -19,7 +19,13 @@ func unzip(archivePath string) error {
 		panic(err)
 	}
 	defer archive.Close()
-
+	_, err = os.Stat(unzipDestination)
+	if err == nil {
+		err := os.RemoveAll(unzipDestination)
+		if err != nil {
+			return err
+		}
+	}
 	for _, f := range archive.File {
 		filePath := filepath.Join(unzipDestination, f.Name)
 		fmt.Println("unzipping file ", filePath)
@@ -120,6 +126,21 @@ func TestGetGitCommitTags(t *testing.T) {
 	tags := strings.Split(tagsString, " ")
 	assert.Equal(t, tag0, tags[0])
 	assert.Equal(t, tag1, tags[1])
+
+	tearDownGitTest()
+}
+
+func TestGetGitCommitFilesAndFolders_DummyRepo(t *testing.T) {
+	gitDirPath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
+
+	lastSuccessfulDeploymentCommitHash := "3c81a8388c1f15094eacd23ff0a90b32b0e91590"
+	currentCommitHash := "bc07702bf82cf39e3b43ce3324876380b26fc918"
+	fsList, err := GetGitAffectedFilesAndFoldersBetweenCommits(gitDirPath, lastSuccessfulDeploymentCommitHash, currentCommitHash)
+	assert.NoError(t, err)
+	//assert.NotEmpty(t, fsList)
+	for _, f := range fsList {
+		t.Log(f)
+	}
 
 	tearDownGitTest()
 }
