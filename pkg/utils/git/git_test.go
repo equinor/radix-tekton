@@ -3,6 +3,8 @@ package git
 import (
 	"archive/zip"
 	"fmt"
+	"github.com/equinor/radix-tekton/pkg/utils/tests"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
@@ -103,6 +105,7 @@ func tearDownGitTest() {
 }
 
 func TestGetGitCommitHashFromHead_DummyRepo2(t *testing.T) {
+	setupLog(t)
 	gitDirPath := setupGitTest("test_data2.zip", "test_data2")
 
 	releaseBranchHeadCommitHash := "a1ee44808de2a42d291b59fefb5c66b8ff6bf898"
@@ -114,6 +117,7 @@ func TestGetGitCommitHashFromHead_DummyRepo2(t *testing.T) {
 }
 
 func TestGetGitCommitTags(t *testing.T) {
+	setupLog(t)
 	gitDirPath := setupGitTest("test_data.zip", "test_data")
 
 	branchName := "branch-with-tags"
@@ -131,16 +135,48 @@ func TestGetGitCommitTags(t *testing.T) {
 }
 
 func TestGetGitCommitFilesAndFolders_DummyRepo(t *testing.T) {
-	gitDirPath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
-
-	lastSuccessfulDeploymentCommitHash := "3c81a8388c1f15094eacd23ff0a90b32b0e91590"
-	currentCommitHash := "bc07702bf82cf39e3b43ce3324876380b26fc918"
-	fsList, err := GetGitAffectedFilesAndFoldersBetweenCommits(gitDirPath, lastSuccessfulDeploymentCommitHash, currentCommitHash)
-	assert.NoError(t, err)
-	//assert.NotEmpty(t, fsList)
-	for _, f := range fsList {
-		t.Log(f)
+	setupLog(t)
+	scenarios := []struct {
+		name                      string
+		olderCommit               string
+		newerCommit               string
+		configFile                string
+		configBranch              string
+		expectedChangedFolders    []string
+		expectedChangedConfigFile bool
+	}{
+		//{
+		//	name:            "init - add radixconfig and gitignore files",
+		//	olderCommit:     "",
+		//	newerCommit:     "7d6309f7537baa2815bb631802e6d8d613150c52",
+		//	configFile:      "radixconfig.yaml",
+		//	configBranch:    "main",
+		//	expectedChangedFolders: []string{"."},
+		//expectedChangedConfigFile: false,
+		//},
+		{
+			name:                      "added app1 folder and its files. app1 component added to the radixconfig",
+			olderCommit:               "7d6309f7537baa2815bb631802e6d8d613150c52",
+			newerCommit:               "0b9ee1f93639fff492c05b8d5e662301f508debe",
+			configFile:                "radixconfig.yaml",
+			configBranch:              "main",
+			expectedChangedFolders:    []string{".", "app1"},
+			expectedChangedConfigFile: true,
+		},
 	}
-
+	gitDirPath := "/Users/SSMOL/dev/go/src/github.com/equinor/test-data-git-commits"
+	//gitDirPath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
+	for _, scenario := range scenarios {
+		t.Logf("- test-case: %s", scenario.name)
+		changedFolderList, changedConfigFile, err := GetGitAffectedResourcesBetweenCommits(gitDirPath, scenario.olderCommit, scenario.newerCommit, scenario.configFile, scenario.configBranch)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, scenario.expectedChangedFolders, changedFolderList)
+		assert.Equal(t, scenario.expectedChangedConfigFile, changedConfigFile)
+	}
 	tearDownGitTest()
+}
+
+func setupLog(t *testing.T) {
+	log.AddHook(tests.NewTestLogHook(t, log.DebugLevel).
+		ModifyFormatter(func(f *log.TextFormatter) { f.DisableTimestamp = true }))
 }
