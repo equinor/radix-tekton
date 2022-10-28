@@ -2,16 +2,18 @@ package git
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"github.com/equinor/radix-common/utils/maps"
-	"github.com/go-git/go-git/v5/plumbing/filemode"
-	"github.com/go-git/go-git/v5/plumbing/object"
 	"io"
 	"path/filepath"
 	"strings"
 
+	"github.com/equinor/radix-common/utils/maps"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/filemode"
+	"github.com/go-git/go-git/v5/plumbing/format/diff"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -35,66 +37,106 @@ func GetGitCommitHashFromHead(gitDir string, branchName string) (string, error) 
 	return hashBytesString, nil
 }
 
-// GetGitAffectedResourcesBetweenCommits returns the list of folders, where files were affected between commits
-func GetGitAffectedResourcesBetweenCommits(gitDir, olderCommit, newerCommit, configFile, configBranch string) ([]string, bool, error) {
-	log.Debug("test")
-	r, err := git.PlainOpen(gitDir)
-	if err != nil {
-		return nil, false, err
+// GetGitAffectedResourcesBetweenCommits returns the list of folders, where files were affected after beforeCommitHash (not included) till targetCommitHash commit (included)
+func GetGitAffectedResourcesBetweenCommits(gitDir, beforeCommitStr, targetCommitStr, configFile, configBranch string) ([]string, bool, error) {
+	targetCommitHash := plumbing.NewHash(targetCommitStr)
+	if targetCommitHash == plumbing.ZeroHash {
+		return nil, false, errors.New("invalid targetCommit")
+	}
+	if strings.EqualFold(beforeCommitStr, targetCommitStr) {
+		return nil, false, errors.New("beforeCommit cannot be equal to the targetCommit")
 	}
 	log.Debugf("opened gitDir %s", gitDir)
-
-	logOptions := git.LogOptions{
-		Order: git.LogOrderCommitterTime,
-	}
-	if len(newerCommit) > 0 {
-		logOptions.From = plumbing.NewHash(newerCommit)
-	}
-	w, err := r.Worktree()
+	repository, err := git.PlainOpen(gitDir)
 	if err != nil {
 		return nil, false, err
 	}
-	fmt.Println(w)
-
-	logIter, err := r.Log(&logOptions)
+	head, err := repository.Head()
 	if err != nil {
 		return nil, false, err
 	}
-
+	branchHeadNamePrefix := "refs/heads/"
+	branchHeadName := head.Name().String()
+	if head.Name() == "HEAD" || !strings.HasPrefix(branchHeadName, branchHeadNamePrefix) {
+		return nil, false, errors.New("unexpected current git revision")
+	}
+	currentBranch := strings.TrimPrefix(branchHeadName, branchHeadNamePrefix)
+	beforeCommitHash, err := getBeforeCommit(beforeCommitStr, repository)
+	if (err != nil && err != io.EOF) && beforeCommitHash == nil {
+		return nil, false, err
+	}
+	beforeCommit, err := repository.CommitObject(*beforeCommitHash)
+	if err != nil {
+		return nil, false, err
+	}
 	changedFolderNamesMap := make(map[string]bool)
 	changedConfigFile := false
-	err = logIter.ForEach(func(c *object.Commit) error {
-		fmt.Println(c.Hash)
-		files, err := c.Files()
+	if strings.EqualFold(beforeCommitHash.String(), targetCommitStr) { //the first commit
+		fileIter, err := beforeCommit.Files()
 		if err != nil {
-			return err
+			return nil, false, err
 		}
-		commitHash := c.Hash.String()
-		log.Debugf("changes in the commit: %s", commitHash)
-		files.ForEach(func(file *object.File) error {
-			name := ""
-			if file.Mode == filemode.Dir {
-				name = file.Name
-			} else {
-				name = filepath.Dir(file.Name)
-				if !changedConfigFile && strings.EqualFold(configFile, file.Name) {
-					changedConfigFile = true
-				}
-				log.Debugf("- file: %s", file.Name)
-			}
-			if _, ok := changedFolderNamesMap[name]; !ok {
-				changedFolderNamesMap[name] = true
-				log.Debugf("- dir: %s", name)
-			}
+		fileIter.ForEach(func(file *object.File) error {
+			appendFolderToMap(changedFolderNamesMap, &changedConfigFile, configBranch, currentBranch, configFile, file.Name, file.Mode)
 			return nil
 		})
-		if len(olderCommit) > 0 && commitHash == olderCommit {
+		return maps.GetKeysFromMap(changedFolderNamesMap), changedConfigFile, nil
+	}
+
+	targetCommit, err := repository.CommitObject(targetCommitHash)
+	if (err != nil && err != io.EOF) && targetCommit == nil {
+		return nil, false, err
+	}
+	patch, err := beforeCommit.Patch(targetCommit)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, filePatch := range patch.FilePatches() {
+		fromFile, toFile := filePatch.Files()
+		for _, file := range []diff.File{fromFile, toFile} {
+			if file != nil {
+				appendFolderToMap(changedFolderNamesMap, &changedConfigFile, configBranch, currentBranch, configFile, file.Path(), file.Mode())
+			}
+		}
+	}
+	return maps.GetKeysFromMap(changedFolderNamesMap), changedConfigFile, nil
+}
+
+func appendFolderToMap(changedFolderNamesMap map[string]bool, changedConfigFile *bool, configBranch string, currentBranch string, configFile string, filePath string, fileMode filemode.FileMode) {
+	if filePath == "" {
+		return
+	}
+	folderName := ""
+	if fileMode == filemode.Dir {
+		folderName = filePath
+	} else {
+		folderName = filepath.Dir(filePath)
+		if !*changedConfigFile && strings.EqualFold(configBranch, currentBranch) && strings.EqualFold(configFile, filePath) {
+			*changedConfigFile = true
+		}
+		log.Debugf("- file: %s", filePath)
+	}
+	if _, ok := changedFolderNamesMap[folderName]; !ok {
+		changedFolderNamesMap[folderName] = true
+	}
+}
+
+func getBeforeCommit(commitHash string, repository *git.Repository) (*plumbing.Hash, error) {
+	logIter, err := repository.Log(&git.LogOptions{
+		Order: git.LogOrderBSF,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var hash plumbing.Hash
+	err = logIter.ForEach(func(c *object.Commit) error {
+		hash = c.Hash
+		if len(commitHash) > 0 && c.Hash.String() == commitHash {
 			return io.EOF
 		}
 		return nil
 	})
-
-	return maps.GetKeysFromMap(changedFolderNamesMap), changedConfigFile, nil
+	return &hash, err
 }
 
 func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, error) {
