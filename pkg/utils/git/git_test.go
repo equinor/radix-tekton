@@ -166,6 +166,15 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			expectedChangedConfigFile: true,
 		},
 		{
+			name:                      "Changed radixconfig, but config branch is different",
+			targetCommit:              "0b9ee1f93639fff492c05b8d5e662301f508debe",
+			beforeCommitExclusive:     "7d6309f7537baa2815bb631802e6d8d613150c52",
+			configFile:                "radixconfig.yaml",
+			configBranch:              "another-branch",
+			expectedChangedFolders:    []string{".", "app1"},
+			expectedChangedConfigFile: false,
+		},
+		{
 			name:                      "changed files in the folder app1",
 			targetCommit:              "f68e88664ed51f79880b7f69d5789d21086ed1dc",
 			beforeCommitExclusive:     "0b9ee1f93639fff492c05b8d5e662301f508debe",
@@ -305,6 +314,15 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			configBranch:              "main",
 			expectedChangedFolders:    []string{"app3/data/level2"},
 			expectedChangedConfigFile: true,
+		},
+		{
+			name:                      "radixconfig-app3-level2.yaml was added to the subfolder of the folder app3, it is current config, but not this branch",
+			targetCommit:              "e89ac3d3ba66498cf6165e119d29a86b6b8183ab",
+			beforeCommitExclusive:     "986065b74c8e9e4012287fdd6b13021591ce00c3",
+			configFile:                "app3/data/level2/radixconfig-app3-level2.yaml",
+			configBranch:              "another-branch",
+			expectedChangedFolders:    []string{"app3/data/level2"},
+			expectedChangedConfigFile: false,
 		},
 		{
 			name:                      "Files were changed in subfolders app1 and app3, with config radixconfig.yaml",
