@@ -11,13 +11,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//ProcessRadixAppConfig Load radixconfig.yaml to a ConfigMap and create RadixApplication
+//ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
 func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 	configFileContent, err := configmap.CreateFromRadixConfigFile(ctx.kubeClient, ctx.env)
 	if err != nil {
-		log.Fatalf("Error copying radixconfig.yaml and creating config map from file: %v", err)
+		log.Fatalf("Error copying Radix config file %s and creating config map from it: %v", ctx.GetEnv().GetRadixConfigFileName(), err)
 	}
-	log.Debugln("radixconfig.yaml has been loaded")
+	log.Debugln(fmt.Sprintf("Radix config file %s has been loaded", ctx.GetEnv().GetRadixConfigFileName()))
 
 	ctx.radixApplication, err = ctx.createRadixApplicationFromContent(configFileContent)
 	if err != nil {
