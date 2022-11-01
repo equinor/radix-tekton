@@ -4,6 +4,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -29,12 +30,17 @@ func (e *env) GetAppName() string {
 	return viper.GetString(defaults.RadixAppEnvironmentVariable)
 }
 
-//GetConfigMapName Name of a ConfigMap, where Radix config file will be saved during RadixPipelineActionPrepare action
+//GetRadixConfigMapName Name of a ConfigMap, where Radix config file will be saved during RadixPipelineActionPrepare action
 func (e *env) GetRadixConfigMapName() string {
 	return viper.GetString(defaults.RadixConfigConfigMapEnvironmentVariable)
 }
 
-//GetRadixConfigFileName Name with path to the cloned Radix config file file to be saved to a ConfigMap
+//GetRadixConfigBranch Name of the Radix application config branch
+func (e *env) GetRadixConfigBranch() string {
+	return viper.GetString(defaults.RadixConfigBranchEnvironmentVariable)
+}
+
+//GetRadixConfigFileName Name with path to the cloned Radix config file to be saved to a ConfigMap
 func (e *env) GetRadixConfigFileName() string {
 	return viper.GetString(defaults.RadixConfigFileEnvironmentVariable)
 }
@@ -91,6 +97,15 @@ func (e *env) GetLogLevel() log.Level {
 	}
 }
 
+//GetGitRepositoryWorkspace Path to the cloned GitHub repository
+func (e *env) GetGitRepositoryWorkspace() string {
+	workspace := viper.GetString(defaults.RadixPromoteToEnvironmentEnvironmentVariable)
+	if len(workspace) == 0 {
+		return git.Workspace
+	}
+	return workspace
+}
+
 //Env Environment for the pipeline
 type Env interface {
 	GetAppName() string
@@ -99,6 +114,7 @@ type Env interface {
 	GetRadixConfigMapName() string
 	GetGitConfigMapName() string
 	GetWebhookCommitId() string
+	GetRadixConfigBranch() string
 	GetRadixConfigFileName() string
 	GetRadixPipelineType() v1.RadixPipelineType
 	GetRadixPromoteDeployment() string
@@ -108,6 +124,7 @@ type Env interface {
 	GetBranch() string
 	GetPipelinesAction() string
 	GetLogLevel() log.Level
+	GetGitRepositoryWorkspace() string
 }
 
 //NewEnvironment New instance of an Environment for the pipeline

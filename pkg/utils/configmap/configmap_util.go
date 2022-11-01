@@ -3,11 +3,15 @@ package configmap
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"io/ioutil"
+	"strconv"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	operatorGit "github.com/equinor/radix-operator/pkg/apis/utils/git"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
+	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	log "github.com/sirupsen/logrus"
@@ -16,6 +20,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+type lastEnvironmentDeployCommit struct {
+	envName    string
+	commitHash string
+}
 
 // CreateFromRadixConfigFile Creates a configmap by name from file and returns as content
 func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (string, error) {
@@ -46,17 +55,28 @@ func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (st
 	return configFileContent, nil
 }
 
-func CreateGitConfigFromGitRepository(kubeClient kubernetes.Interface, env env.Env) error {
-	gitCommitHash, err := getGitCommitHash(env)
+// CreateGitConfigFromGitRepository create configmap with git repository information
+func CreateGitConfigFromGitRepository(kubeClient kubernetes.Interface, radixClient radixclient.Interface, appName string, env env.Env, environments []string) error {
+	workspace := env.GetGitRepositoryWorkspace()
+	targetCommitHash, err := getGitCommitHash(workspace, env)
 	if err != nil {
 		return err
 	}
 
-	gitTags, err := git.GetGitCommitTags(operatorGit.Workspace+"/.git", gitCommitHash)
+	gitDir := workspace + "/.git"
+	gitTags, err := git.GetGitCommitTags(gitDir, targetCommitHash)
 	if err != nil {
 		return err
 	}
 
+	beforeCommitHash, err := getLastSuccessfulEnvironmentDeployCommits(radixClient, appName, environments)
+	if err != nil {
+		return err
+	}
+	changedFolders, radixConfigChanged, err := git.GetGitAffectedResourcesBetweenCommits(gitDir, targetCommitHash, beforeCommitHash, env.GetRadixConfigFileName(), env.GetRadixConfigBranch())
+	if err != nil {
+		return err
+	}
 	_, err = kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
 		context.Background(),
 		&corev1.ConfigMap{
@@ -65,8 +85,10 @@ func CreateGitConfigFromGitRepository(kubeClient kubernetes.Interface, env env.E
 				Namespace: env.GetAppNamespace(),
 			},
 			Data: map[string]string{
-				defaults.RadixGitCommitHashKey: gitCommitHash,
-				defaults.RadixGitTagsKey:       gitTags,
+				defaults.RadixGitCommitHashKey:             targetCommitHash,
+				defaults.RadixGitTagsKey:                   gitTags,
+				defaults.RadixGitChangedFolders:            getFolderListAsString(changedFolders),
+				defaults.RadixGitChangedChangedRadixConfig: strconv.FormatBool(radixConfigChanged),
 			},
 		},
 		metav1.CreateOptions{})
@@ -78,7 +100,44 @@ func CreateGitConfigFromGitRepository(kubeClient kubernetes.Interface, env env.E
 	return nil
 }
 
-func getGitCommitHash(e env.Env) (string, error) {
+func getLastSuccessfulEnvironmentDeployCommits(radixClient radixclient.Interface, appName string, environments []string) (map[string]string, error) {
+	envCommitMap := make(map[string]string)
+	appNamespace := utils.GetAppNamespace(appName)
+	radixJobList, err := radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	jobMap := make(map[string]v1.RadixPipelineType)
+	for _, rj := range radixJobList.Items {
+		jobMap[rj.GetName()] = rj.Spec.PipeLineType
+	}
+	for _, envName := range environments {
+		namespace := utils.GetEnvironmentNamespace(appName, envName)
+		deployments := radixClient.RadixV1().RadixDeployments(namespace)
+		radixDeploymentList, err := deployments.List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		var lastRadixDeploy *v1.RadixDeployment
+		for _, rd := range radixDeploymentList.Items {
+			if pipeLineType, ok := jobMap[rd.GetLabels()[kube.RadixJobNameLabel]]; ok {
+				if lastRadixDeploy == nil || lastRadixDeploy.Status.ActiveFrom.Time < rd.Status.ActiveFrom.Time {
+					lastRadixDeploy = &rd
+				}
+			}
+		}
+	}
+	return envCommitMap, nil
+}
+
+func getFolderListAsString(changedFolders []string) string {
+	for i, name := range changedFolders {
+		changedFolders[i] = strings.ReplaceAll(name, ",", "\\,")
+	}
+	return strings.Join(changedFolders, ",")
+}
+
+func getGitCommitHash(workspace string, e env.Env) (string, error) {
 	webhookCommitId := e.GetWebhookCommitId()
 	if webhookCommitId != "" {
 		log.Debugf("got git commit hash %s from env var %s", webhookCommitId, defaults.RadixGithubWebhookCommitId)
@@ -86,7 +145,7 @@ func getGitCommitHash(e env.Env) (string, error) {
 	}
 	branchName := e.GetBranch()
 	log.Debugf("determining git commit hash of HEAD of branch %s", branchName)
-	gitCommitHash, err := git.GetGitCommitHashFromHead(operatorGit.Workspace+"/.git", branchName)
+	gitCommitHash, err := git.GetGitCommitHashFromHead(workspace+"/.git", branchName)
 	log.Debugf("got git commit hash %s from HEAD of branch %s", gitCommitHash, branchName)
 	return gitCommitHash, err
 }

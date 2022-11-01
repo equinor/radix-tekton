@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"github.com/equinor/radix-common/utils/maps"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"os"
@@ -30,7 +31,8 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 	var errs []error
 
 	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
-		err := configmap.CreateGitConfigFromGitRepository(ctx.kubeClient, ctx.env)
+		targetEnvs := maps.GetKeysFromMap(ctx.targetEnvironments)
+		err := configmap.CreateGitConfigFromGitRepository(ctx.kubeClient, ctx.radixClient, ctx.GetEnv().GetAppName(), ctx.GetEnv(), targetEnvs)
 		if err != nil {
 			return err
 		}

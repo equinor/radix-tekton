@@ -346,16 +346,17 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 	gitDirPath := "/users/SSMOL/dev/go/src/github.com/equinor/test-data-git-commits"
 	//gitDirPath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
 	for _, scenario := range scenarios {
-		t.Logf("- test-case: %s", scenario.name)
-		changedFolderList, changedConfigFile, err := GetGitAffectedResourcesBetweenCommits(gitDirPath, scenario.beforeCommitExclusive, scenario.targetCommit, scenario.configFile, scenario.configBranch)
-		if scenario.expectedError == "" {
-			require.NoError(t, err)
-		} else {
-			require.Error(t, err)
-			require.Equal(t, scenario.expectedError, err.Error())
-		}
-		assert.ElementsMatch(t, scenario.expectedChangedFolders, changedFolderList)
-		assert.Equal(t, scenario.expectedChangedConfigFile, changedConfigFile)
+		t.Run(scenario.name, func(t *testing.T) {
+			changedFolderList, changedConfigFile, err := GetGitAffectedResourcesBetweenCommits(gitDirPath, scenario.targetCommit, scenario.beforeCommitExclusive, scenario.configFile, scenario.configBranch)
+			if scenario.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Equal(t, scenario.expectedError, err.Error())
+			}
+			assert.ElementsMatch(t, scenario.expectedChangedFolders, changedFolderList)
+			assert.Equal(t, scenario.expectedChangedConfigFile, changedConfigFile)
+		})
 	}
 	tearDownGitTest()
 }
