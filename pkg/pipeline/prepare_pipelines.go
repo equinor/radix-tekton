@@ -3,9 +3,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-common/utils/maps"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,9 +11,13 @@ import (
 	"github.com/equinor/radix-common/utils"
 	commonUtils "github.com/equinor/radix-common/utils"
 	commonErrors "github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
+	"github.com/equinor/radix-tekton/pkg/utils/configmap"
+	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
@@ -32,10 +33,22 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 
 	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
 		targetEnvs := maps.GetKeysFromMap(ctx.targetEnvironments)
-		err := configmap.CreateGitConfigFromGitRepository(ctx.kubeClient, ctx.radixClient, ctx.GetEnv().GetAppName(), ctx.GetEnv(), targetEnvs)
+		env := ctx.GetEnv()
+		commitHash, commitTags, err := git.GetCommitHashAndTags(env)
 		if err != nil {
 			return err
 		}
+		err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, commitHash, commitTags)
+		if err != nil {
+			return err
+		}
+		changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(ctx.radixClient, env.GetAppName(), targetEnvs, env.GetRadixConfigFileName(), env.GetGitRepositoryWorkspace(), env.GetRadixConfigBranch(), commitHash)
+		if err != nil {
+			return err
+		}
+		//TODO
+		fmt.Println(changesFromGitRepository)
+		fmt.Println(radixConfigWasChanged)
 	}
 
 	for targetEnv := range ctx.targetEnvironments {

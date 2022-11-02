@@ -66,7 +66,7 @@ func unzip(archivePath string) error {
 	return nil
 }
 
-func getGitDir(testDataDir string) string {
+func getTestGitDir(testDataDir string) string {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -83,7 +83,7 @@ func TestGetGitCommitHashFromHead_DummyRepo(t *testing.T) {
 	gitDirPath := setupGitTest("test_data.zip", "test_data")
 
 	releaseBranchHeadCommitHash := "43332ef8f8a8c3830a235a5af7ac9098142e3af8"
-	commitHash, err := GetGitCommitHashFromHead(gitDirPath, "release")
+	commitHash, err := getGitCommitHashFromHead(gitDirPath, "release")
 	assert.NoError(t, err)
 	assert.Equal(t, commitHash, releaseBranchHeadCommitHash)
 
@@ -95,7 +95,7 @@ func setupGitTest(testDataArchive, unzippedDir string) string {
 	if err != nil {
 		panic(err)
 	}
-	return getGitDir(unzippedDir)
+	return getTestGitDir(unzippedDir)
 }
 
 func tearDownGitTest() {
@@ -110,7 +110,7 @@ func TestGetGitCommitHashFromHead_DummyRepo2(t *testing.T) {
 	gitDirPath := setupGitTest("test_data2.zip", "test_data2")
 
 	releaseBranchHeadCommitHash := "a1ee44808de2a42d291b59fefb5c66b8ff6bf898"
-	commitHash, err := GetGitCommitHashFromHead(gitDirPath, "this-branch-is-only-remote")
+	commitHash, err := getGitCommitHashFromHead(gitDirPath, "this-branch-is-only-remote")
 	assert.NoError(t, err)
 	assert.Equal(t, commitHash, releaseBranchHeadCommitHash)
 
@@ -124,9 +124,9 @@ func TestGetGitCommitTags(t *testing.T) {
 	branchName := "branch-with-tags"
 	tag0 := "special&%¤tag"
 	tag1 := "v1.12"
-	commitHash, err := GetGitCommitHashFromHead(gitDirPath, branchName)
+	commitHash, err := getGitCommitHashFromHead(gitDirPath, branchName)
 	assert.NoError(t, err)
-	tagsString, err := GetGitCommitTags(gitDirPath, commitHash)
+	tagsString, err := getGitCommitTags(gitDirPath, commitHash)
 	assert.NoError(t, err)
 	tags := strings.Split(tagsString, " ")
 	assert.Equal(t, tag0, tags[0])
@@ -347,7 +347,7 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 	//gitDirPath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
-			changedFolderList, changedConfigFile, err := GetGitAffectedResourcesBetweenCommits(gitDirPath, scenario.targetCommit, scenario.beforeCommitExclusive, scenario.configFile, scenario.configBranch)
+			changedFolderList, changedConfigFile, err := getGitAffectedResourcesBetweenCommits(gitDirPath, scenario.targetCommit, scenario.beforeCommitExclusive, scenario.configFile, scenario.configBranch)
 			if scenario.expectedError == "" {
 				require.NoError(t, err)
 			} else {
