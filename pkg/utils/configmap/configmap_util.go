@@ -121,7 +121,8 @@ func getLastSuccessfulEnvironmentDeployCommits(radixClient radixclient.Interface
 		var lastRadixDeploy *v1.RadixDeployment
 		for _, rd := range radixDeploymentList.Items {
 			if pipeLineType, ok := jobMap[rd.GetLabels()[kube.RadixJobNameLabel]]; ok {
-				if lastRadixDeploy == nil || lastRadixDeploy.Status.ActiveFrom.Time < rd.Status.ActiveFrom.Time {
+				if pipeLineType == v1.BuildDeploy &&
+					(lastRadixDeploy == nil || timeIsBefore(lastRadixDeploy.Status.ActiveFrom, rd.Status.ActiveFrom)) {
 					lastRadixDeploy = &rd
 				}
 			}
@@ -130,6 +131,29 @@ func getLastSuccessfulEnvironmentDeployCommits(radixClient radixclient.Interface
 	return envCommitMap, nil
 }
 
+func timeIsBefore(time1 metav1.Time, time2 metav1.Time) bool {
+	if time1.IsZero() {
+		return true
+	}
+	if time2.IsZero() {
+		return false
+	}
+	return time1.Before(&time2)
+}
+
+/*
+	sort.Slice(rds, func(i, j int) bool {
+		if rds[j].Status.ActiveFrom.IsZero() {
+			return true
+		}
+
+		if rds[i].Status.ActiveFrom.IsZero() {
+			return false
+		}
+		return rds[j].Status.ActiveFrom.Before(&rds[i].Status.ActiveFrom)
+	})
+
+*/
 func getFolderListAsString(changedFolders []string) string {
 	for i, name := range changedFolders {
 		changedFolders[i] = strings.ReplaceAll(name, ",", "\\,")
