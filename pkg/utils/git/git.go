@@ -183,6 +183,9 @@ func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, 
 		// with new hash after initial clone
 		commitHash, err = r.ResolveRevision(plumbing.Revision(fmt.Sprintf("refs/remotes/origin/%s", branchName)))
 		if err != nil {
+			if strings.EqualFold(err.Error(), "reference not found") {
+				return nil, errors.New(fmt.Sprintf("there is no branch %s or access to the repository", branchName))
+			}
 			return nil, err
 		}
 	}
