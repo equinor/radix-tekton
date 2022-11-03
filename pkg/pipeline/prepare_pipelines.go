@@ -35,17 +35,22 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
 		targetEnvs := maps.GetKeysFromMap(ctx.targetEnvironments)
 		env := ctx.GetEnv()
-		commitHash, commitTags, err := git.GetCommitHashAndTags(env)
+		pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(env)
 		if err != nil {
 			return err
 		}
-		err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, commitHash, commitTags)
+		err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, pipelineTargetCommitHash, commitTags)
 		if err != nil {
 			return err
 		}
 
 		radixDeploymentCommitHashProvider := commithash.NewProvider(ctx.radixClient, env.GetAppName(), targetEnvs)
-		changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(radixDeploymentCommitHashProvider, env.GetRadixConfigFileName(), env.GetGitRepositoryWorkspace(), env.GetRadixConfigBranch(), commitHash)
+		lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
+		if err != nil {
+			return err
+		}
+
+		changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(env.GetGitRepositoryWorkspace(), env.GetRadixConfigBranch(), env.GetRadixConfigFileName(), pipelineTargetCommitHash, lastCommitHashesForEnvs)
 		if err != nil {
 			return err
 		}

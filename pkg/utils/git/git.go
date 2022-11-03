@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	commithash "github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
+	"github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
 	"io"
 	"path/filepath"
 	"strings"
@@ -65,7 +65,7 @@ func getGitCommitHashFromHead(gitDir string, branchName string) (string, error) 
 }
 
 // getGitAffectedResourcesBetweenCommits returns the list of folders, where files were affected after beforeCommitHash (not included) till targetCommitHash commit (included)
-func getGitAffectedResourcesBetweenCommits(gitDir, targetCommitString, beforeCommitString, configFile, configBranch string) ([]string, bool, error) {
+func getGitAffectedResourcesBetweenCommits(gitDir, configBranch, configFile, targetCommitString, beforeCommitString string) ([]string, bool, error) {
 	targetCommitHash, err := getTargetCommitHash(beforeCommitString, targetCommitString)
 	if err != nil {
 		return nil, false, err
@@ -282,15 +282,11 @@ func getGitCommitHash(workspace string, e env.Env) (string, error) {
 }
 
 // GetChangesFromGitRepository Get changed folders in environments and if radixconfig.yaml was changed
-func GetChangesFromGitRepository(commitHashProvider commithash.Provider, radixConfigFileName, gitWorkspace, radixConfigBranch, targetCommitHash string) (map[string][]string, bool, error) {
-	beforeCommitHash, err := commitHashProvider.GetEnvironmentCommits()
-	if err != nil {
-		return nil, false, err
-	}
+func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash string, lastCommitHashesForEnvs commithash.EnvCommitHashMap) (map[string][]string, bool, error) {
 	radixConfigWasChanged := false
 	envChanges := make(map[string][]string)
-	for envName, beforeCommitHash := range beforeCommitHash {
-		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(getGitDir(gitWorkspace), targetCommitHash, beforeCommitHash, radixConfigFileName, radixConfigBranch)
+	for envName, beforeCommitHash := range lastCommitHashesForEnvs {
+		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(getGitDir(gitWorkspace), radixConfigBranch, radixConfigFileName, targetCommitHash, beforeCommitHash)
 		envChanges[envName] = changedFolders
 		if err != nil {
 			return nil, false, err

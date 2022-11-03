@@ -293,7 +293,7 @@ func TestGetLastSuccessfulEnvironmentDeployCommits(t *testing.T) {
 		t.Run(scenario.name, func(t *testing.T) {
 			provider := prepareTestGetLastSuccessfulEnvironmentDeployCommits(t, appName, scenario)
 
-			commits, err := provider.GetEnvironmentCommits()
+			commits, err := provider.GetLastCommitHashesForEnvironments()
 
 			assert.NoError(t, err)
 			commitEnvs := maps.GetKeysFromMap(commits)
