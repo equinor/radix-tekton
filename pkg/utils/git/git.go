@@ -1,20 +1,16 @@
 package git
 
 import (
-	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	commithash "github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
 	"io"
 	"path/filepath"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-operator/pkg/apis/utils"
-	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -22,7 +18,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/format/diff"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type lastEnvironmentDeployCommit struct {
@@ -287,90 +282,21 @@ func getGitCommitHash(workspace string, e env.Env) (string, error) {
 }
 
 // GetChangesFromGitRepository Get changed folders in environments and if radixconfig.yaml was changed
-func GetChangesFromGitRepository(radixClient radixclient.Interface, appName string, environments []string, radixConfigFileName, gitWorkspace, radixConfigBranch, targetCommitHash string) (map[string][]string, bool, error) {
-	envChanges := make(map[string][]string, len(environments))
-	radixConfigWasChanged := false
-	beforeCommitHash, err := getLastSuccessfulEnvironmentDeployCommits(radixClient, appName, environments)
+func GetChangesFromGitRepository(commitHashProvider commithash.Provider, radixConfigFileName, gitWorkspace, radixConfigBranch, targetCommitHash string) (map[string][]string, bool, error) {
+	beforeCommitHash, err := commitHashProvider.GetEnvironmentCommits()
 	if err != nil {
 		return nil, false, err
 	}
+	radixConfigWasChanged := false
+	envChanges := make(map[string][]string)
 	for envName, beforeCommitHash := range beforeCommitHash {
-		changedFolders, radixConfigChanged, err := getGitAffectedResourcesBetweenCommits(getGitDir(gitWorkspace), targetCommitHash, beforeCommitHash, radixConfigFileName, radixConfigBranch)
+		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(getGitDir(gitWorkspace), targetCommitHash, beforeCommitHash, radixConfigFileName, radixConfigBranch)
 		envChanges[envName] = changedFolders
 		if err != nil {
 			return nil, false, err
 		}
-		radixConfigWasChanged = radixConfigWasChanged || radixConfigChanged
+		radixConfigWasChanged = radixConfigWasChanged || radixConfigWasChangedInEnv
 
 	}
 	return envChanges, radixConfigWasChanged, nil
-}
-
-func getLastSuccessfulEnvironmentDeployCommits(radixClient radixclient.Interface, appName string, environments []string) (map[string]string, error) {
-	envCommitMap := make(map[string]string)
-	appNamespace := utils.GetAppNamespace(appName)
-	jobTypeMap, err := getJobTypeMap(radixClient, appNamespace)
-	if err != nil {
-		return nil, err
-	}
-	for _, envName := range environments {
-		radixDeployments, err := getRadixDeployments(radixClient, appName, envName)
-		if err != nil {
-			return nil, err
-		}
-		envCommitMap[envName] = getLastRadixDeploymentCommitHash(radixDeployments, jobTypeMap)
-	}
-	return envCommitMap, nil
-}
-
-func getLastRadixDeploymentCommitHash(radixDeployments []v1.RadixDeployment, jobTypeMap map[string]v1.RadixPipelineType) string {
-	var lastRadixDeployment *v1.RadixDeployment
-	for _, radixDeployment := range radixDeployments {
-		pipeLineType, ok := jobTypeMap[radixDeployment.GetLabels()[kube.RadixJobNameLabel]]
-		if !ok || pipeLineType != v1.BuildDeploy {
-			continue
-		}
-		if lastRadixDeployment == nil || timeIsBefore(lastRadixDeployment.Status.ActiveFrom, radixDeployment.Status.ActiveFrom) {
-			lastRadixDeployment = &radixDeployment
-		}
-	}
-	if lastRadixDeployment == nil {
-		return ""
-	}
-	if commitHash, ok := lastRadixDeployment.GetAnnotations()[kube.RadixCommitAnnotation]; ok && len(commitHash) > 0 {
-		return commitHash
-	}
-	return lastRadixDeployment.GetLabels()[kube.RadixCommitLabel]
-}
-
-func getRadixDeployments(radixClient radixclient.Interface, appName, envName string) ([]v1.RadixDeployment, error) {
-	namespace := utils.GetEnvironmentNamespace(appName, envName)
-	deployments := radixClient.RadixV1().RadixDeployments(namespace)
-	radixDeploymentList, err := deployments.List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	return radixDeploymentList.Items, nil
-}
-
-func getJobTypeMap(radixClient radixclient.Interface, appNamespace string) (map[string]v1.RadixPipelineType, error) {
-	radixJobList, err := radixClient.RadixV1().RadixJobs(appNamespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	jobMap := make(map[string]v1.RadixPipelineType)
-	for _, rj := range radixJobList.Items {
-		jobMap[rj.GetName()] = rj.Spec.PipeLineType
-	}
-	return jobMap, nil
-}
-
-func timeIsBefore(time1 metav1.Time, time2 metav1.Time) bool {
-	if time1.IsZero() {
-		return true
-	}
-	if time2.IsZero() {
-		return false
-	}
-	return time1.Before(&time2)
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
+	"github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
 	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
@@ -42,7 +43,9 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 		if err != nil {
 			return err
 		}
-		changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(ctx.radixClient, env.GetAppName(), targetEnvs, env.GetRadixConfigFileName(), env.GetGitRepositoryWorkspace(), env.GetRadixConfigBranch(), commitHash)
+
+		radixDeploymentCommitHashProvider := commithash.NewProvider(ctx.radixClient, env.GetAppName(), targetEnvs)
+		changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(radixDeploymentCommitHashProvider, env.GetRadixConfigFileName(), env.GetGitRepositoryWorkspace(), env.GetRadixConfigBranch(), commitHash)
 		if err != nil {
 			return err
 		}
