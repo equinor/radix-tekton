@@ -42,6 +42,10 @@ func (ctx *pipelineContext) GetTektonClient() tektonclient.Interface {
 	return ctx.tektonClient
 }
 
+func (ctx *pipelineContext) GetRadixApplication() *v1.RadixApplication {
+	return ctx.radixApplication
+}
+
 func (ctx *pipelineContext) getEnvVars(targetEnv string) v1.EnvVarsMap {
 	envVarsMap := make(v1.EnvVarsMap)
 	ctx.setPipelineRunParamsFromBuild(envVarsMap)

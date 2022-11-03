@@ -16,32 +16,12 @@ import (
 )
 
 // CreateFromRadixConfigFile Creates a configmap by name from file and returns as content
-func CreateFromRadixConfigFile(kubeClient kubernetes.Interface, env env.Env) (string, error) {
+func CreateFromRadixConfigFile(env env.Env) (string, error) {
 	content, err := readConfigFile(env.GetRadixConfigFileName())
 	if err != nil {
 		return "", fmt.Errorf("could not find or read config yaml file \"%s\"", env.GetRadixConfigFileName())
 	}
-
-	configFileContent := string(content)
-	_, err = kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
-		context.Background(),
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      env.GetRadixConfigMapName(),
-				Namespace: env.GetAppNamespace(),
-			},
-			Data: map[string]string{
-				"tekton-pipeline": "true",
-				"content":         configFileContent,
-			},
-		},
-		metav1.CreateOptions{})
-
-	if err != nil {
-		return "", err
-	}
-	log.Debugf("Created ConfigMap %s", env.GetRadixConfigMapName())
-	return configFileContent, nil
+	return string(content), nil
 }
 
 // CreateGitConfigFromGitRepository create configmap with git repository information

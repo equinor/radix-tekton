@@ -1,19 +1,22 @@
 package pipeline
 
 import (
+	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"strings"
 
 	commonErrors "github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	log "github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
 func (ctx *pipelineContext) ProcessRadixAppConfig() error {
-	configFileContent, err := configmap.CreateFromRadixConfigFile(ctx.kubeClient, ctx.env)
+	configFileContent, err := configmap.CreateFromRadixConfigFile(ctx.env)
 	if err != nil {
 		log.Fatalf("Error copying Radix config file %s and creating config map from it: %v", ctx.GetEnv().GetRadixConfigFileName(), err)
 	}
@@ -32,7 +35,35 @@ func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 
 	log.Debugln("Target environments have been loaded")
 
-	return ctx.preparePipelinesJob()
+	componentsChangedInEnv, radixConfigWasChanged, err := ctx.preparePipelinesJob()
+	if err != nil {
+		return err
+	}
+	return ctx.createConfigMap(configFileContent, componentsChangedInEnv, radixConfigWasChanged)
+}
+
+func (ctx *pipelineContext) createConfigMap(configFileContent string, componentsInEnvironments componentsInEnvironments, radixConfigWasChanged bool) error {
+	env := ctx.GetEnv()
+	_, err := ctx.kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
+		context.Background(),
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      env.GetRadixConfigMapName(),
+				Namespace: env.GetAppNamespace(),
+			},
+			Data: map[string]string{
+				"tekton-pipeline": "true",
+				"content":         configFileContent,
+				//"componentsToDeploy": ,//TODO deployStatus
+			},
+		},
+		metav1.CreateOptions{})
+
+	if err != nil {
+		return err
+	}
+	log.Debugf("Created ConfigMap %s", env.GetRadixConfigMapName())
+	return nil
 }
 
 func (ctx *pipelineContext) setTargetEnvironments() (bool, error) {

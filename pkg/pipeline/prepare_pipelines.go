@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -27,38 +28,24 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (ctx *pipelineContext) preparePipelinesJob() error {
+type componentsInEnvironments map[string][]string //map[envName]componentNames
+
+func (ctx *pipelineContext) preparePipelinesJob() (componentsInEnvironments, bool, error) {
 	namespace := ctx.env.GetAppNamespace()
 	timestamp := time.Now().Format("20060102150405")
-	var errs []error
+	componentsChangedInEnv := make(componentsInEnvironments)
+	radixConfigWasChanged := false
 
 	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
-		targetEnvs := maps.GetKeysFromMap(ctx.targetEnvironments)
-		env := ctx.GetEnv()
-		pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(env)
+		changedComponents, changedRadixConfig, err := ctx.prepareBuildDeployPipeline()
 		if err != nil {
-			return err
+			return nil, false, err
 		}
-		err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, pipelineTargetCommitHash, commitTags)
-		if err != nil {
-			return err
-		}
-
-		radixDeploymentCommitHashProvider := commithash.NewProvider(ctx.radixClient, env.GetAppName(), targetEnvs)
-		lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
-		if err != nil {
-			return err
-		}
-
-		changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(env.GetGitRepositoryWorkspace(), env.GetRadixConfigBranch(), env.GetRadixConfigFileName(), pipelineTargetCommitHash, lastCommitHashesForEnvs)
-		if err != nil {
-			return err
-		}
-		//TODO
-		fmt.Println(changesFromGitRepository)
-		fmt.Println(radixConfigWasChanged)
+		componentsChangedInEnv = changedComponents
+		radixConfigWasChanged = changedRadixConfig
 	}
 
+	var errs []error
 	for targetEnv := range ctx.targetEnvironments {
 		log.Debugf("create a pipeline for the environment %s", targetEnv)
 		err := ctx.preparePipelinesJobForTargetEnv(namespace, targetEnv, timestamp)
@@ -66,7 +53,56 @@ func (ctx *pipelineContext) preparePipelinesJob() error {
 			errs = append(errs, err)
 		}
 	}
-	return commonErrors.Concat(errs)
+	return componentsChangedInEnv, radixConfigWasChanged, commonErrors.Concat(errs)
+}
+
+func (ctx *pipelineContext) prepareBuildDeployPipeline() (componentsInEnvironments, bool, error) {
+	targetEnvs := maps.GetKeysFromMap(ctx.targetEnvironments)
+	env := ctx.GetEnv()
+	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(env)
+	if err != nil {
+		return nil, false, err
+	}
+	err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, pipelineTargetCommitHash, commitTags)
+	if err != nil {
+		return nil, false, err
+	}
+
+	radixDeploymentCommitHashProvider := commithash.NewProvider(ctx.radixClient, env.GetAppName(), targetEnvs)
+	lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
+	if err != nil {
+		return nil, false, err
+	}
+
+	changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(env.GetGitRepositoryWorkspace(), env.GetRadixConfigBranch(), env.GetRadixConfigFileName(), pipelineTargetCommitHash, lastCommitHashesForEnvs)
+	if err != nil {
+		return nil, false, err
+	}
+
+	componentsChangedInEnv := componentsInEnvironments{}
+	for _, radixComponent := range ctx.GetRadixApplication().Spec.Components {
+		if len(radixComponent.Image) > 0 {
+			continue
+		}
+		for envName, changedFolders := range changesFromGitRepository {
+			environmentConfig := radixComponent.GetEnvironmentConfigByName(envName)
+			if !radixComponent.GetEnabledForEnv(environmentConfig) {
+				continue
+			}
+			sourceFolder := commonUtils.TernaryString(len(radixComponent.GetSourceFolder()) == 0, ".", radixComponent.GetSourceFolder())
+			sourceFolderWithTrailingSlash := sourceFolder
+			if !strings.HasSuffix(sourceFolderWithTrailingSlash, "/") {
+				sourceFolderWithTrailingSlash = path.Join(sourceFolderWithTrailingSlash, "/")
+			}
+			for _, folder := range changedFolders {
+				if strings.HasPrefix(folder, sourceFolderWithTrailingSlash) {
+					componentsChangedInEnv[envName] = append(componentsChangedInEnv[envName], radixComponent.GetName())
+					break
+				}
+			}
+		}
+	}
+	return componentsChangedInEnv, radixConfigWasChanged, nil
 }
 
 func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, targetEnv, timestamp string) error {
