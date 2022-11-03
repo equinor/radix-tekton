@@ -1,9 +1,9 @@
-package tests
+package test
 
 /* The log hook to type logrus logs, written within the logic under test
 Example:
 func setupLog(t *testing.T) {
-	log.AddHook(tests.NewTestLogHook(t, log.DebugLevel).
+	log.AddHook(test.NewTestLogHook(t, log.DebugLevel).
 		ModifyFormatter(func(f *log.TextFormatter) { f.DisableTimestamp = true }))
 }
 

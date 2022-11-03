@@ -18,7 +18,7 @@ RUN go mod download
 COPY ./pkg ./pkg
 COPY ./main.go ./
 
-# Run tests
+# Run test
 RUN go test -cover `go list ./... | grep -v 'pkg/client'`
 
 # Build

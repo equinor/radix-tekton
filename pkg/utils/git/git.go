@@ -318,14 +318,12 @@ func getLastSuccessfulEnvironmentDeployCommits(radixClient radixclient.Interface
 		if err != nil {
 			return nil, err
 		}
-		if commitHash, ok := getLastRadixDeploymentCommitHash(radixDeployments, jobTypeMap); ok {
-			envCommitMap[envName] = commitHash
-		}
+		envCommitMap[envName] = getLastRadixDeploymentCommitHash(radixDeployments, jobTypeMap)
 	}
 	return envCommitMap, nil
 }
 
-func getLastRadixDeploymentCommitHash(radixDeployments []v1.RadixDeployment, jobTypeMap map[string]v1.RadixPipelineType) (string, bool) {
+func getLastRadixDeploymentCommitHash(radixDeployments []v1.RadixDeployment, jobTypeMap map[string]v1.RadixPipelineType) string {
 	var lastRadixDeployment *v1.RadixDeployment
 	for _, radixDeployment := range radixDeployments {
 		pipeLineType, ok := jobTypeMap[radixDeployment.GetLabels()[kube.RadixJobNameLabel]]
@@ -337,10 +335,12 @@ func getLastRadixDeploymentCommitHash(radixDeployments []v1.RadixDeployment, job
 		}
 	}
 	if lastRadixDeployment == nil {
-		return "", false
+		return ""
 	}
-	commitHash, ok := lastRadixDeployment.GetAnnotations()[kube.RadixCommitAnnotation]
-	return commitHash, ok && len(commitHash) > 0
+	if commitHash, ok := lastRadixDeployment.GetAnnotations()[kube.RadixCommitAnnotation]; ok && len(commitHash) > 0 {
+		return commitHash
+	}
+	return lastRadixDeployment.GetLabels()[kube.RadixCommitLabel]
 }
 
 func getRadixDeployments(radixClient radixclient.Interface, appName, envName string) ([]v1.RadixDeployment, error) {
