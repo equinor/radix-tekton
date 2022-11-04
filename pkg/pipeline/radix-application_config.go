@@ -6,9 +6,12 @@ import (
 	"strings"
 
 	commonErrors "github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
+	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,16 +38,20 @@ func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 
 	log.Debugln("Target environments have been loaded")
 
-	componentsChangedInEnv, radixConfigWasChanged, err := ctx.preparePipelinesJob()
+	prepareBuildContext, err := ctx.preparePipelinesJob()
 	if err != nil {
 		return err
 	}
-	return ctx.createConfigMap(configFileContent, componentsChangedInEnv, radixConfigWasChanged)
+	return ctx.createConfigMap(configFileContent, prepareBuildContext)
 }
 
-func (ctx *pipelineContext) createConfigMap(configFileContent string, componentsInEnvironments componentsInEnvironments, radixConfigWasChanged bool) error {
+func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBuildContext *model.PrepareBuildContext) error {
 	env := ctx.GetEnv()
-	_, err := ctx.kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
+	buildContext, err := yaml.Marshal(prepareBuildContext)
+	if err != nil {
+		return err
+	}
+	_, err = ctx.kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
 		context.Background(),
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -52,9 +59,8 @@ func (ctx *pipelineContext) createConfigMap(configFileContent string, components
 				Namespace: env.GetAppNamespace(),
 			},
 			Data: map[string]string{
-				"tekton-pipeline": "true",
-				"content":         configFileContent,
-				//"componentsToDeploy": ,//TODO deployStatus
+				pipelineDefaults.PipelineConfigMapContent:      configFileContent,
+				pipelineDefaults.PipelineConfigMapBuildContext: string(buildContext),
 			},
 		},
 		metav1.CreateOptions{})
