@@ -29,13 +29,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type componentsInEnvironments map[string][]string //map[envName]componentNames
-
 func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, error) {
-	namespace := ctx.env.GetAppNamespace()
-	timestamp := time.Now().Format("20060102150405")
 	buildContext := model.PrepareBuildContext{}
-
 	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
 		changedComponents, changedRadixConfig, err := ctx.prepareBuildDeployPipeline()
 		if err != nil {
@@ -45,15 +40,27 @@ func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, e
 		buildContext.ChangedRadixConfig = changedRadixConfig
 	}
 
+	environmentSubPipelinesToRun, err := ctx.getEnvironmentSubPipelinesToRun()
+	if err != nil {
+		return nil, err
+	}
+	buildContext.EnvironmentSubPipelinesToRun = environmentSubPipelinesToRun
+	return &buildContext, err
+}
+
+func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error) {
+	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
 	var errs []error
+	appNamespace := ctx.env.GetAppNamespace()
+	timestamp := time.Now().Format("20060102150405")
 	for targetEnv := range ctx.targetEnvironments {
-		log.Debugf("create a pipeline for the environment %s", targetEnv)
-		runSubPipeline, pipelineFilePath, err := ctx.preparePipelinesJobForTargetEnv(namespace, targetEnv, timestamp)
+		log.Debugf("create a sub-pipeline for the environment %s", targetEnv)
+		runSubPipeline, pipelineFilePath, err := ctx.preparePipelinesJobForTargetEnv(appNamespace, targetEnv, timestamp)
 		if err != nil {
 			errs = append(errs, err)
 		}
 		if runSubPipeline {
-			buildContext.EnvironmentSubPipelinesToRun = append(buildContext.EnvironmentSubPipelinesToRun, model.EnvironmentSubPipelineToRun{
+			environmentSubPipelinesToRun = append(environmentSubPipelinesToRun, model.EnvironmentSubPipelineToRun{
 				Environment:  targetEnv,
 				PipelineFile: pipelineFilePath,
 			})
@@ -63,7 +70,15 @@ func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, e
 	if err != nil {
 		return nil, err
 	}
-	return &buildContext, err
+	if len(environmentSubPipelinesToRun) > 0 {
+		log.Infoln("Run sub-pipelines:")
+		for _, subPipelineToRun := range environmentSubPipelinesToRun {
+			log.Infof("- environment %s, pipeline file %s", subPipelineToRun.Environment, subPipelineToRun.PipelineFile)
+		}
+		return environmentSubPipelinesToRun, nil
+	}
+	log.Infoln("No sub-pipelines to run")
+	return nil, nil
 }
 
 func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToBuild, bool, error) {

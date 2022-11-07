@@ -5,6 +5,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
+	tektonDefaults "github.com/equinor/radix-tekton/pkg/defaults"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -99,7 +100,7 @@ func (e *env) GetLogLevel() log.Level {
 
 //GetGitRepositoryWorkspace Path to the cloned GitHub repository
 func (e *env) GetGitRepositoryWorkspace() string {
-	workspace := viper.GetString(defaults.RadixPromoteToEnvironmentEnvironmentVariable)
+	workspace := viper.GetString(tektonDefaults.RadixGithubWorkspaceEnvironmentVariable)
 	if len(workspace) == 0 {
 		return git.Workspace
 	}

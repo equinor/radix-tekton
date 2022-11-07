@@ -2,7 +2,6 @@ package commithash
 
 import (
 	"context"
-
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -16,8 +15,13 @@ type provider struct {
 	environments []string
 }
 
+type RadixDeploymentCommit struct {
+	RadixDeploymentName string
+	CommitHash          string
+}
+
 // EnvCommitHashMap Last commit hashes in environments
-type EnvCommitHashMap map[string]string
+type EnvCommitHashMap map[string]RadixDeploymentCommit
 
 type Provider interface {
 	// GetLastCommitHashesForEnvironments  Gets last successful environment Radix deployment commit hashes
@@ -60,7 +64,7 @@ func (provider *provider) getRadixDeploymentsForEnvironment(name string) ([]v1.R
 	return radixDeploymentList.Items, nil
 }
 
-func getLastRadixDeploymentCommitHash(radixDeployments []v1.RadixDeployment, jobTypeMap map[string]v1.RadixPipelineType) string {
+func getLastRadixDeploymentCommitHash(radixDeployments []v1.RadixDeployment, jobTypeMap map[string]v1.RadixPipelineType) RadixDeploymentCommit {
 	var lastRadixDeployment *v1.RadixDeployment
 	for _, radixDeployment := range radixDeployments {
 		pipeLineType, ok := jobTypeMap[radixDeployment.GetLabels()[kube.RadixJobNameLabel]]
@@ -71,13 +75,16 @@ func getLastRadixDeploymentCommitHash(radixDeployments []v1.RadixDeployment, job
 			lastRadixDeployment = &radixDeployment
 		}
 	}
-	if lastRadixDeployment == nil {
-		return ""
+	radixDeploymentCommit := RadixDeploymentCommit{}
+	if lastRadixDeployment != nil {
+		radixDeploymentCommit.RadixDeploymentName = lastRadixDeployment.GetName()
+		if commitHash, ok := lastRadixDeployment.GetAnnotations()[kube.RadixCommitAnnotation]; ok && len(commitHash) > 0 {
+			radixDeploymentCommit.CommitHash = commitHash
+		} else {
+			radixDeploymentCommit.CommitHash = lastRadixDeployment.GetLabels()[kube.RadixCommitLabel]
+		}
 	}
-	if commitHash, ok := lastRadixDeployment.GetAnnotations()[kube.RadixCommitAnnotation]; ok && len(commitHash) > 0 {
-		return commitHash
-	}
-	return lastRadixDeployment.GetLabels()[kube.RadixCommitLabel]
+	return radixDeploymentCommit
 }
 
 func getJobTypeMap(radixClient radixclient.Interface, appNamespace string) (map[string]v1.RadixPipelineType, error) {

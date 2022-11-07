@@ -4,14 +4,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
 	"io"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
@@ -285,14 +286,39 @@ func getGitCommitHash(workspace string, e env.Env) (string, error) {
 func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash string, lastCommitHashesForEnvs commithash.EnvCommitHashMap) (map[string][]string, bool, error) {
 	radixConfigWasChanged := false
 	envChanges := make(map[string][]string)
-	for envName, beforeCommitHash := range lastCommitHashesForEnvs {
-		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(getGitDir(gitWorkspace), radixConfigBranch, radixConfigFileName, targetCommitHash, beforeCommitHash)
+	if len(lastCommitHashesForEnvs) == 0 {
+		log.Infof("No changes in GitHub repository")
+		return nil, false, nil
+	}
+	if strings.HasPrefix(radixConfigFileName, gitWorkspace) {
+		radixConfigFileName = strings.TrimPrefix(strings.TrimPrefix(radixConfigFileName, gitWorkspace), "/")
+	}
+	log.Infof("Changes in GitHub repository:")
+	for envName, radixDeploymentCommit := range lastCommitHashesForEnvs {
+		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(getGitDir(gitWorkspace), radixConfigBranch, radixConfigFileName, targetCommitHash, radixDeploymentCommit.CommitHash)
 		envChanges[envName] = changedFolders
 		if err != nil {
 			return nil, false, err
 		}
 		radixConfigWasChanged = radixConfigWasChanged || radixConfigWasChangedInEnv
-
+		printEnvironmentChangedFolders(envName, radixDeploymentCommit, targetCommitHash, changedFolders)
+	}
+	if radixConfigWasChanged {
+		log.Infof("Radix config file was changed %s", radixConfigFileName)
 	}
 	return envChanges, radixConfigWasChanged, nil
+}
+
+func printEnvironmentChangedFolders(envName string, radixDeploymentCommit commithash.RadixDeploymentCommit, targetCommitHash string, changedFolders []string) {
+	log.Infof("- for the environment %s", envName)
+	if len(radixDeploymentCommit.RadixDeploymentName) == 0 {
+		log.Infof(" from initial commit to commit %s:\n", targetCommitHash)
+	} else {
+		log.Infof(" after the commit %s (of the deployment %s) to the commit %s:\n", radixDeploymentCommit.CommitHash, radixDeploymentCommit.RadixDeploymentName, targetCommitHash)
+	}
+	sort.Strings(changedFolders)
+	for _, folder := range changedFolders {
+		log.Infof("  - %s\n", folder)
+	}
+	log.Infoln()
 }

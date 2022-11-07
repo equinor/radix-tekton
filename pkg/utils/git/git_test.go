@@ -343,8 +343,8 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			expectedChangedConfigFile: false,
 		},
 	}
-	gitDirPath := "/users/SSMOL/dev/go/src/github.com/equinor/test-data-git-commits"
-	//gitDirPath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
+	//gitDirPath := "/users/SSMOL/dev/go/src/github.com/equinor/test-data-git-commits"
+	gitDirPath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
 			changedFolderList, changedConfigFile, err := getGitAffectedResourcesBetweenCommits(gitDirPath, scenario.configBranch, scenario.configFile, scenario.targetCommit, scenario.beforeCommitExclusive)
