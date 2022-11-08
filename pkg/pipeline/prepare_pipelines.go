@@ -93,6 +93,10 @@ func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToB
 		return nil, false, err
 	}
 
+	if len(pipelineTargetCommitHash) == 0 {
+		return nil, false, err
+	}
+
 	radixDeploymentCommitHashProvider := commithash.NewProvider(ctx.radixClient, env.GetAppName(), targetEnvs)
 	lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
 	if err != nil {
