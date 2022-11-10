@@ -93,7 +93,7 @@ func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToB
 		return nil, false, err
 	}
 
-	if len(pipelineTargetCommitHash) == 0 {
+	if len(ctx.GetEnv().GetWebhookCommitId()) == 0 {
 		return nil, false, err
 	}
 

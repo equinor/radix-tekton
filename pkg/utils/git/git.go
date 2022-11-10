@@ -312,13 +312,13 @@ func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFil
 func printEnvironmentChangedFolders(envName string, radixDeploymentCommit commithash.RadixDeploymentCommit, targetCommitHash string, changedFolders []string) {
 	log.Infof("- for the environment %s", envName)
 	if len(radixDeploymentCommit.RadixDeploymentName) == 0 {
-		log.Infof(" from initial commit to commit %s:\n", targetCommitHash)
+		log.Infof(" from initial commit to commit %s:", targetCommitHash)
 	} else {
-		log.Infof(" after the commit %s (of the deployment %s) to the commit %s:\n", radixDeploymentCommit.CommitHash, radixDeploymentCommit.RadixDeploymentName, targetCommitHash)
+		log.Infof(" after the commit %s (of the deployment %s) to the commit %s:", radixDeploymentCommit.CommitHash, radixDeploymentCommit.RadixDeploymentName, targetCommitHash)
 	}
 	sort.Strings(changedFolders)
 	for _, folder := range changedFolders {
-		log.Infof("  - %s\n", folder)
+		log.Infof("  - %s", folder)
 	}
 	log.Infoln()
 }
