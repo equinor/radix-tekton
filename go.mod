@@ -4,9 +4,10 @@ go 1.18
 
 require (
 	github.com/equinor/radix-common v1.2.3
-	github.com/equinor/radix-operator v1.29.0
+	github.com/equinor/radix-operator v1.99.1000-0.20221107160506-a63cb7766838
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/goccy/go-yaml v1.9.5
+	github.com/golang/mock v1.6.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
@@ -32,6 +33,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emicklei/go-restful v2.15.0+incompatible // indirect
 	github.com/emirpasic/gods v1.12.0 // indirect
+	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
@@ -45,7 +47,6 @@ require (
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/google/go-containerregistry v0.8.1-0.20220216220642-00c59d91847c // indirect
@@ -122,4 +123,5 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
+//github.com/equinor/radix-operator => /Users/SSMOL/dev/go/src/github.com/equinor/radix-operator
 replace k8s.io/client-go v1.5.2 => k8s.io/client-go v0.23.5
