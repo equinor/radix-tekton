@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +33,7 @@ func CreateGitConfigFromGitRepository(env env.Env, kubeClient kubernetes.Interfa
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      env.GetGitConfigMapName(),
 				Namespace: env.GetAppNamespace(),
+				Labels:    map[string]string{kube.RadixJobNameLabel: env.GetRadixPipelineJobName()},
 			},
 			Data: map[string]string{
 				defaults.RadixGitCommitHashKey: targetCommitHash,

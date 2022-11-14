@@ -9,6 +9,7 @@ import (
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
+	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"github.com/goccy/go-yaml"
@@ -57,6 +58,7 @@ func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBui
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      env.GetRadixConfigMapName(),
 				Namespace: env.GetAppNamespace(),
+				Labels:    map[string]string{kube.RadixJobNameLabel: ctx.GetEnv().GetRadixPipelineJobName()},
 			},
 			Data: map[string]string{
 				pipelineDefaults.PipelineConfigMapContent:      configFileContent,
