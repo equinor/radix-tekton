@@ -108,8 +108,8 @@ func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToB
 		return nil, false, err
 	}
 
-	environmentToBuilds := ctx.getEnvironmentsToBuild(changesFromGitRepository)
-	return environmentToBuilds, radixConfigWasChanged, nil
+	environmentsToBuild := ctx.getEnvironmentsToBuild(changesFromGitRepository)
+	return environmentsToBuild, radixConfigWasChanged, nil
 }
 
 func (ctx *pipelineContext) getEnvironmentsToBuild(changesFromGitRepository map[string][]string) []model.EnvironmentToBuild {
