@@ -113,7 +113,7 @@ func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToB
 }
 
 func (ctx *pipelineContext) getEnvironmentsToBuild(changesFromGitRepository map[string][]string) []model.EnvironmentToBuild {
-	var environmentToBuilds []model.EnvironmentToBuild
+	var environmentsToBuild []model.EnvironmentToBuild
 	for envName, changedFolders := range changesFromGitRepository {
 		var componentsWithChangedSource []string
 		for _, radixComponent := range ctx.GetRadixApplication().Spec.Components {
@@ -126,12 +126,12 @@ func (ctx *pipelineContext) getEnvironmentsToBuild(changesFromGitRepository map[
 				componentsWithChangedSource = append(componentsWithChangedSource, radixJobComponent.GetName())
 			}
 		}
-		environmentToBuilds = append(environmentToBuilds, model.EnvironmentToBuild{
+		environmentsToBuild = append(environmentsToBuild, model.EnvironmentToBuild{
 			Environment: envName,
 			Components:  componentsWithChangedSource,
 		})
 	}
-	return environmentToBuilds
+	return environmentsToBuild
 }
 
 func componentHasChangedSource(envName string, component v1.RadixCommonComponent, changedFolders []string) bool {
