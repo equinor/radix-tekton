@@ -342,6 +342,15 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 			expectedChangedFolders:    []string{"app1/data", "app3/data/level2"},
 			expectedChangedConfigFile: false,
 		},
+		{
+			name:                      "Empty commit, made with 'git commit -m 'empty' --allow-empty",
+			targetCommit:              "3e7a395110c0d48bf80c4d5b695a14dbd3494059",
+			beforeCommitExclusive:     "32edacbf02d348f86bfc446c6e23cae0b7cf53b1",
+			configFile:                "app3/data/level2/radixconfig-app3-level2.yaml",
+			configBranch:              "main",
+			expectedChangedFolders:    []string{},
+			expectedChangedConfigFile: false,
+		},
 	}
 	//gitDirPath := "/users/SSMOL/dev/go/src/github.com/equinor/test-data-git-commits"
 	gitDirPath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
