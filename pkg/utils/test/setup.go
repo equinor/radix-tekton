@@ -13,10 +13,10 @@ import (
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 )
 
-func Setup(t *testing.T) (radixclient.Interface, kubernetes.Interface) {
+func Setup(t *testing.T) (kubernetes.Interface, radixclient.Interface) {
 	kubeclient := kubeclientfake.NewSimpleClientset()
 	radixclient := radixclientfake.NewSimpleClientset()
-	return radixclient, kubeclient
+	return kubeclient, radixclient
 }
 
 func (params *TestParams) ApplyRd(radixClient radixclient.Interface) *v1.RadixDeployment {

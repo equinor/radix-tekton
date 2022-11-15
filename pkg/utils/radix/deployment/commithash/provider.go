@@ -2,14 +2,18 @@ package commithash
 
 import (
 	"context"
+
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 type provider struct {
+	kubeClient   kubernetes.Interface
 	radixClient  radixclient.Interface
 	appName      string
 	environments []string
@@ -29,8 +33,9 @@ type Provider interface {
 }
 
 // NewProvider New instance of the Radix deployment commit hashes provider
-func NewProvider(radixClient radixclient.Interface, appName string, environments []string) Provider {
+func NewProvider(kubeClient kubernetes.Interface, radixClient radixclient.Interface, appName string, environments []string) Provider {
 	return &provider{
+		kubeClient:   kubeClient,
 		radixClient:  radixClient,
 		appName:      appName,
 		environments: environments,
@@ -55,10 +60,20 @@ func (provider *provider) GetLastCommitHashesForEnvironments() (EnvCommitHashMap
 }
 
 func (provider *provider) getRadixDeploymentsForEnvironment(name string) ([]v1.RadixDeployment, error) {
-	namespace := utils.GetEnvironmentNamespace(provider.appName, name)
-	deployments := provider.radixClient.RadixV1().RadixDeployments(namespace)
+	environmentNamespace := utils.GetEnvironmentNamespace(provider.appName, name)
+	_, err := provider.kubeClient.CoreV1().Namespaces().Get(context.Background(), environmentNamespace, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) || errors.IsForbidden(err) {
+			return nil, nil //no environment namespace or no role-binding was created for the radix-tekton - maybe it is new app or env
+		}
+		return nil, err
+	}
+	deployments := provider.radixClient.RadixV1().RadixDeployments(environmentNamespace)
 	radixDeploymentList, err := deployments.List(context.Background(), metav1.ListOptions{})
 	if err != nil {
+		if errors.IsForbidden(err) {
+			return nil, nil //no role-binding was created for the radix-tekton - maybe it is new app or env
+		}
 		return nil, err
 	}
 	return radixDeploymentList.Items, nil
