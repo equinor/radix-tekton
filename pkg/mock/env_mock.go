@@ -91,6 +91,20 @@ func (mr *MockEnvMockRecorder) GetGitConfigMapName() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGitConfigMapName", reflect.TypeOf((*MockEnv)(nil).GetGitConfigMapName))
 }
 
+// GetGitRepositoryWorkspace mocks base method.
+func (m *MockEnv) GetGitRepositoryWorkspace() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetGitRepositoryWorkspace")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetGitRepositoryWorkspace indicates an expected call of GetGitRepositoryWorkspace.
+func (mr *MockEnvMockRecorder) GetGitRepositoryWorkspace() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetGitRepositoryWorkspace", reflect.TypeOf((*MockEnv)(nil).GetGitRepositoryWorkspace))
+}
+
 // GetLogLevel mocks base method.
 func (m *MockEnv) GetLogLevel() logrus.Level {
 	m.ctrl.T.Helper()

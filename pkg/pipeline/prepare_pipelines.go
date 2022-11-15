@@ -3,9 +3,9 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-tekton/pkg/utils/configmap"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,10 +13,15 @@ import (
 	"github.com/equinor/radix-common/utils"
 	commonUtils "github.com/equinor/radix-common/utils"
 	commonErrors "github.com/equinor/radix-common/utils/errors"
+	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
+	"github.com/equinor/radix-tekton/pkg/utils/configmap"
+	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
+	"github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
 	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
@@ -24,65 +29,171 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (ctx *pipelineContext) preparePipelinesJob() error {
-	namespace := ctx.env.GetAppNamespace()
-	timestamp := time.Now().Format("20060102150405")
-	var errs []error
-
+func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, error) {
+	buildContext := model.PrepareBuildContext{}
 	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
-		err := configmap.CreateGitConfigFromGitRepository(ctx.kubeClient, ctx.env)
+		changedComponents, changedRadixConfig, err := ctx.prepareBuildDeployPipeline()
 		if err != nil {
-			return err
+			return nil, err
 		}
+		buildContext.EnvironmentsToBuild = changedComponents
+		buildContext.ChangedRadixConfig = changedRadixConfig
 	}
 
+	environmentSubPipelinesToRun, err := ctx.getEnvironmentSubPipelinesToRun()
+	if err != nil {
+		return nil, err
+	}
+	buildContext.EnvironmentSubPipelinesToRun = environmentSubPipelinesToRun
+	return &buildContext, err
+}
+
+func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error) {
+	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
+	var errs []error
+	appNamespace := ctx.env.GetAppNamespace()
+	timestamp := time.Now().Format("20060102150405")
 	for targetEnv := range ctx.targetEnvironments {
-		log.Debugf("create a pipeline for the environment %s", targetEnv)
-		err := ctx.preparePipelinesJobForTargetEnv(namespace, targetEnv, timestamp)
+		log.Debugf("create a sub-pipeline for the environment %s", targetEnv)
+		runSubPipeline, pipelineFilePath, err := ctx.preparePipelinesJobForTargetEnv(appNamespace, targetEnv, timestamp)
 		if err != nil {
 			errs = append(errs, err)
 		}
+		if runSubPipeline {
+			environmentSubPipelinesToRun = append(environmentSubPipelinesToRun, model.EnvironmentSubPipelineToRun{
+				Environment:  targetEnv,
+				PipelineFile: pipelineFilePath,
+			})
+		}
 	}
-	return commonErrors.Concat(errs)
+	err := commonErrors.Concat(errs)
+	if err != nil {
+		return nil, err
+	}
+	if len(environmentSubPipelinesToRun) > 0 {
+		log.Infoln("Run sub-pipelines:")
+		for _, subPipelineToRun := range environmentSubPipelinesToRun {
+			log.Infof("- environment %s, pipeline file %s", subPipelineToRun.Environment, subPipelineToRun.PipelineFile)
+		}
+		return environmentSubPipelinesToRun, nil
+	}
+	log.Infoln("No sub-pipelines to run")
+	return nil, nil
 }
 
-func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, targetEnv, timestamp string) error {
-	pipelineFilePath, err := ctx.getPipelineFilePath("") //TODO - get pipeline for the targetEnv
+func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToBuild, bool, error) {
+	targetEnvs := maps.GetKeysFromMap(ctx.targetEnvironments)
+	env := ctx.GetEnv()
+	pipelineTargetCommitHash, commitTags, err := git.GetCommitHashAndTags(env)
 	if err != nil {
-		return err
+		return nil, false, err
+	}
+	err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, pipelineTargetCommitHash, commitTags)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if len(ctx.GetEnv().GetWebhookCommitId()) == 0 {
+		return nil, false, err
+	}
+
+	radixDeploymentCommitHashProvider := commithash.NewProvider(ctx.radixClient, env.GetAppName(), targetEnvs)
+	lastCommitHashesForEnvs, err := radixDeploymentCommitHashProvider.GetLastCommitHashesForEnvironments()
+	if err != nil {
+		return nil, false, err
+	}
+
+	changesFromGitRepository, radixConfigWasChanged, err := git.GetChangesFromGitRepository(env.GetGitRepositoryWorkspace(), env.GetRadixConfigBranch(), env.GetRadixConfigFileName(), pipelineTargetCommitHash, lastCommitHashesForEnvs)
+	if err != nil {
+		return nil, false, err
+	}
+
+	environmentsToBuild := ctx.getEnvironmentsToBuild(changesFromGitRepository)
+	return environmentsToBuild, radixConfigWasChanged, nil
+}
+
+func (ctx *pipelineContext) getEnvironmentsToBuild(changesFromGitRepository map[string][]string) []model.EnvironmentToBuild {
+	var environmentsToBuild []model.EnvironmentToBuild
+	for envName, changedFolders := range changesFromGitRepository {
+		var componentsWithChangedSource []string
+		for _, radixComponent := range ctx.GetRadixApplication().Spec.Components {
+			if componentHasChangedSource(envName, &radixComponent, changedFolders) {
+				componentsWithChangedSource = append(componentsWithChangedSource, radixComponent.GetName())
+			}
+		}
+		for _, radixJobComponent := range ctx.GetRadixApplication().Spec.Jobs {
+			if componentHasChangedSource(envName, &radixJobComponent, changedFolders) {
+				componentsWithChangedSource = append(componentsWithChangedSource, radixJobComponent.GetName())
+			}
+		}
+		environmentsToBuild = append(environmentsToBuild, model.EnvironmentToBuild{
+			Environment: envName,
+			Components:  componentsWithChangedSource,
+		})
+	}
+	return environmentsToBuild
+}
+
+func componentHasChangedSource(envName string, component v1.RadixCommonComponent, changedFolders []string) bool {
+	if len(component.GetImage()) > 0 {
+		return false
+	}
+	environmentConfig := component.GetEnvironmentConfigByName(envName)
+	if !component.GetEnabledForEnv(environmentConfig) {
+		return false
+	}
+
+	sourceFolder := commonUtils.TernaryString(len(component.GetSourceFolder()) == 0, ".", component.GetSourceFolder())
+	sourceFolderWithTrailingSlash := sourceFolder
+	if !strings.HasSuffix(sourceFolderWithTrailingSlash, "/") {
+		sourceFolderWithTrailingSlash = path.Join(sourceFolderWithTrailingSlash, "/")
+	}
+
+	for _, folder := range changedFolders {
+		if strings.HasPrefix(folder, sourceFolderWithTrailingSlash) {
+			return true
+		}
+	}
+	return false
+}
+
+func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, envName, timestamp string) (bool, string, error) {
+	pipelineFilePath, err := ctx.getPipelineFilePath("") //TODO - get pipeline for the envName
+	if err != nil {
+		return false, "", err
 	}
 
 	err = ctx.pipelineFileExists(pipelineFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			log.Infof("There is no Tekton pipeline file: %s. Skip Tekton pipeline", pipelineFilePath)
-			return nil
+			return false, "", nil
 		}
-		return err
+		return false, "", err
 	}
 
 	pipeline, err := ctx.getPipeline(pipelineFilePath)
 	if err != nil {
-		return err
+		return false, "", err
 	}
 	log.Debugf("loaded a pipeline with %d tasks", len(pipeline.Spec.Tasks))
 
 	tasks, err := ctx.getPipelineTasks(pipelineFilePath, pipeline)
 	if err != nil {
-		return err
+		return false, "", err
 	}
 	log.Debug("all pipeline tasks found")
-	taskMap, err := ctx.createTasks(namespace, targetEnv, tasks, timestamp)
+	taskMap, err := ctx.createTasks(namespace, envName, tasks, timestamp)
 	if err != nil {
-		return err
+		return false, "", err
 	}
 
-	createdPipeline, err := ctx.createPipeline(namespace, targetEnv, pipeline, taskMap, timestamp)
+	createdPipeline, err := ctx.createPipeline(namespace, envName, pipeline, taskMap, timestamp)
 	if err != nil {
-		return err
+		return false, "", err
 	}
-	log.Infof("created the pipeline %s for the environment %s", createdPipeline.Name, targetEnv)
-	return nil
+	log.Infof("created the pipeline %s for the environment %s", createdPipeline.Name, envName)
+	return true, pipelineFilePath, nil
 }
 
 func (ctx *pipelineContext) pipelineFileExists(pipelineFilePath string) error {
@@ -90,13 +201,13 @@ func (ctx *pipelineContext) pipelineFileExists(pipelineFilePath string) error {
 	return err
 }
 
-func (ctx *pipelineContext) createTasks(namespace string, targetEnv string, tasks []v1beta1.Task, timestamp string) (map[string]v1beta1.Task, error) {
+func (ctx *pipelineContext) createTasks(namespace string, envName string, tasks []v1beta1.Task, timestamp string) (map[string]v1beta1.Task, error) {
 	var createTaskErrors []error
 	taskMap := make(map[string]v1beta1.Task)
 	for _, task := range tasks {
 		originalTaskName := task.Name
 		ensureCorrectSecureContext(&task)
-		createdTask, err := ctx.createTask(namespace, targetEnv, originalTaskName, task, timestamp)
+		createdTask, err := ctx.createTask(namespace, envName, originalTaskName, task, timestamp)
 		if err != nil {
 			createTaskErrors = append(createTaskErrors, err)
 			continue
@@ -161,7 +272,7 @@ func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, er
 	return filepath.Join(configFolder, pipelineFile), nil
 }
 
-func (ctx *pipelineContext) createPipeline(namespace string, targetEnv string, pipeline *v1beta1.Pipeline, taskMap map[string]v1beta1.Task, timestamp string) (*v1beta1.Pipeline, error) {
+func (ctx *pipelineContext) createPipeline(namespace string, envName string, pipeline *v1beta1.Pipeline, taskMap map[string]v1beta1.Task, timestamp string) (*v1beta1.Pipeline, error) {
 	originalPipelineName := pipeline.Name
 	var setTaskRefErrors []error
 	for i, pipelineSpecTask := range pipeline.Spec.Tasks {
@@ -175,9 +286,9 @@ func (ctx *pipelineContext) createPipeline(namespace string, targetEnv string, p
 	if len(setTaskRefErrors) > 0 {
 		return nil, commonErrors.Concat(setTaskRefErrors)
 	}
-	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", getShortName(targetEnv), getShortName(originalPipelineName), timestamp, ctx.hash)
+	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", getShortName(envName), getShortName(originalPipelineName), timestamp, ctx.hash)
 	pipeline.ObjectMeta.Name = pipelineName
-	pipeline.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, targetEnv)
+	pipeline.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, envName)
 	pipeline.ObjectMeta.Annotations = map[string]string{
 		kube.RadixBranchAnnotation:      ctx.env.GetBranch(),
 		defaults.PipelineNameAnnotation: originalPipelineName,
@@ -189,11 +300,11 @@ func (ctx *pipelineContext) createPipeline(namespace string, targetEnv string, p
 		metav1.CreateOptions{})
 }
 
-func (ctx *pipelineContext) createTask(namespace, targetEnv, originalTaskName string, task v1beta1.Task, timestamp string) (*v1beta1.Task, error) {
-	taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(targetEnv), getShortName(originalTaskName), timestamp, ctx.hash)
+func (ctx *pipelineContext) createTask(namespace, envName, originalTaskName string, task v1beta1.Task, timestamp string) (*v1beta1.Task, error) {
+	taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
 	task.ObjectMeta.Name = taskName
 	task.ObjectMeta.Annotations = map[string]string{defaults.PipelineTaskNameAnnotation: originalTaskName}
-	task.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, targetEnv)
+	task.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, envName)
 	if ctx.ownerReference != nil {
 		task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 	}
