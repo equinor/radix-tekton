@@ -12,6 +12,7 @@ import (
 	"github.com/equinor/radix-tekton/pkg/utils/test"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -324,11 +325,16 @@ func createPipelineJobs(appName, jobName string, pipelineType v1.RadixPipelineTy
 }
 
 func prepareTestGetLastSuccessfulEnvironmentDeployCommits(t *testing.T, appName string, scenario scenarioGetLastSuccessfulEnvironmentDeployCommits) Provider {
-	radixClient, _ := test.Setup(t)
+	kubeClient, radixClient := test.Setup(t)
 	for _, environment := range scenario.environments {
+		environmentNamespace := utils.GetEnvironmentNamespace(appName, environment)
+		_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: environmentNamespace}}, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatal(err.Error())
+		}
 		if radixDeploymentBuilders, ok := scenario.envRadixDeploymentBuilders[environment]; ok {
 			for _, radixDeploymentBuilder := range radixDeploymentBuilders {
-				_, err := radixClient.RadixV1().RadixDeployments(utils.GetEnvironmentNamespace(appName, environment)).
+				_, err := radixClient.RadixV1().RadixDeployments(environmentNamespace).
 					Create(context.Background(), radixDeploymentBuilder.WithAppName(appName).BuildRD(), metav1.CreateOptions{})
 				if err != nil {
 					t.Fatal(err.Error())
@@ -339,7 +345,7 @@ func prepareTestGetLastSuccessfulEnvironmentDeployCommits(t *testing.T, appName 
 	for _, pipelineJob := range scenario.pipelineJobs {
 		_, _ = radixClient.RadixV1().RadixJobs(pipelineJob.GetNamespace()).Create(context.Background(), pipelineJob, metav1.CreateOptions{})
 	}
-	return NewProvider(radixClient, appName, scenario.environments)
+	return NewProvider(kubeClient, radixClient, appName, scenario.environments)
 }
 
 func setupLog(t *testing.T) {
