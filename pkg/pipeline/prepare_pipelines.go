@@ -93,7 +93,7 @@ func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToB
 		return nil, false, err
 	}
 
-	if len(ctx.GetEnv().GetWebhookCommitId()) == 0 {
+	if !ctx.isPipelineStartedByWebhook() {
 		return nil, false, err
 	}
 
@@ -110,6 +110,10 @@ func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToB
 
 	environmentsToBuild := ctx.getEnvironmentsToBuild(changesFromGitRepository)
 	return environmentsToBuild, radixConfigWasChanged, nil
+}
+
+func (ctx *pipelineContext) isPipelineStartedByWebhook() bool {
+	return len(ctx.GetEnv().GetWebhookCommitId()) > 0
 }
 
 func (ctx *pipelineContext) getEnvironmentsToBuild(changesFromGitRepository map[string][]string) []model.EnvironmentToBuild {

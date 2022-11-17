@@ -116,21 +116,21 @@ func TestGetLastSuccessfulEnvironmentDeployCommits(t *testing.T) {
 							kube.RadixCommitAnnotation: "commit1",
 						}).
 						WithLabel(kube.RadixJobNameLabel, "job1").
-						WithCreated(timeNow.Add(time.Hour * time.Duration(1))).
+						WithActiveFrom(timeNow.Add(time.Hour * time.Duration(1))).
 						WithCondition(v1.DeploymentInactive),
 					getRadixDeploymentBuilderFor("dev", "rd3").
 						WithAnnotations(map[string]string{
 							kube.RadixCommitAnnotation: "commit3",
 						}).
 						WithLabel(kube.RadixJobNameLabel, "job3").
-						WithCreated(timeNow.Add(time.Hour * time.Duration(9))).
+						WithActiveFrom(timeNow.Add(time.Hour * time.Duration(9))).
 						WithCondition(v1.DeploymentActive),
 					getRadixDeploymentBuilderFor("dev", "rd2").
 						WithAnnotations(map[string]string{
 							kube.RadixCommitAnnotation: "commit2",
 						}).
 						WithLabel(kube.RadixJobNameLabel, "job2").
-						WithCreated(timeNow.Add(time.Hour * time.Duration(5))).
+						WithActiveFrom(timeNow.Add(time.Hour * time.Duration(5))).
 						WithCondition(v1.DeploymentInactive),
 				},
 			},
@@ -151,21 +151,21 @@ func TestGetLastSuccessfulEnvironmentDeployCommits(t *testing.T) {
 							kube.RadixCommitAnnotation: "commit1",
 						}).
 						WithLabel(kube.RadixJobNameLabel, "job1").
-						WithCreated(timeNow.Add(time.Hour * time.Duration(1))).
+						WithActiveFrom(timeNow.Add(time.Hour * time.Duration(1))).
 						WithCondition(v1.DeploymentInactive),
 					getRadixDeploymentBuilderFor("dev", "rd3").
 						WithAnnotations(map[string]string{
 							kube.RadixCommitAnnotation: "commit3",
 						}).
 						WithLabel(kube.RadixJobNameLabel, "job3").
-						WithCreated(timeNow.Add(time.Hour * time.Duration(9))).
+						WithActiveFrom(timeNow.Add(time.Hour * time.Duration(9))).
 						WithCondition(v1.DeploymentInactive),
 					getRadixDeploymentBuilderFor("dev", "rd2").
 						WithAnnotations(map[string]string{
 							kube.RadixCommitAnnotation: "commit2",
 						}).
 						WithLabel(kube.RadixJobNameLabel, "job2").
-						WithCreated(timeNow.Add(time.Hour * time.Duration(5))).
+						WithActiveFrom(timeNow.Add(time.Hour * time.Duration(5))).
 						WithCondition(v1.DeploymentActive),
 				},
 			},
@@ -187,14 +187,14 @@ func TestGetLastSuccessfulEnvironmentDeployCommits(t *testing.T) {
 							kube.RadixCommitAnnotation: "commit2-dev",
 						}).
 						WithLabel(kube.RadixJobNameLabel, "job2").
-						WithCreated(timeNow.Add(time.Hour * time.Duration(5))).
+						WithActiveFrom(timeNow.Add(time.Hour * time.Duration(5))).
 						WithCondition(v1.DeploymentActive),
 					getRadixDeploymentBuilderFor("dev", "rd1-qa").
 						WithAnnotations(map[string]string{
 							kube.RadixCommitAnnotation: "commit1-dev",
 						}).
 						WithLabel(kube.RadixJobNameLabel, "job1").
-						WithCreated(timeNow.Add(time.Hour * time.Duration(1))).
+						WithActiveFrom(timeNow.Add(time.Hour * time.Duration(1))).
 						WithCondition(v1.DeploymentInactive),
 				},
 				"qa": {
@@ -203,14 +203,14 @@ func TestGetLastSuccessfulEnvironmentDeployCommits(t *testing.T) {
 							kube.RadixCommitAnnotation: "commit2-qa",
 						}).
 						WithLabel(kube.RadixJobNameLabel, "job4").
-						WithCreated(timeNow.Add(time.Hour * time.Duration(5))).
+						WithActiveFrom(timeNow.Add(time.Hour * time.Duration(5))).
 						WithCondition(v1.DeploymentActive),
 					getRadixDeploymentBuilderFor("qa", "rd1-qa").
 						WithAnnotations(map[string]string{
 							kube.RadixCommitAnnotation: "commit1-dev",
 						}).
 						WithLabel(kube.RadixJobNameLabel, "job3").
-						WithCreated(timeNow.Add(time.Hour * time.Duration(1))).
+						WithActiveFrom(timeNow.Add(time.Hour * time.Duration(1))).
 						WithCondition(v1.DeploymentInactive),
 				},
 			},

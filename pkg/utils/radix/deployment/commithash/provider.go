@@ -82,12 +82,13 @@ func (provider *provider) getRadixDeploymentsForEnvironment(name string) ([]v1.R
 func getLastRadixDeploymentCommitHash(radixDeployments []v1.RadixDeployment, jobTypeMap map[string]v1.RadixPipelineType) RadixDeploymentCommit {
 	var lastRadixDeployment *v1.RadixDeployment
 	for _, radixDeployment := range radixDeployments {
-		pipeLineType, ok := jobTypeMap[radixDeployment.GetLabels()[kube.RadixJobNameLabel]]
+		rd := radixDeployment
+		pipeLineType, ok := jobTypeMap[rd.GetLabels()[kube.RadixJobNameLabel]]
 		if !ok || pipeLineType != v1.BuildDeploy {
 			continue
 		}
-		if lastRadixDeployment == nil || timeIsBefore(lastRadixDeployment.Status.ActiveFrom, radixDeployment.Status.ActiveFrom) {
-			lastRadixDeployment = &radixDeployment
+		if lastRadixDeployment == nil || timeIsBefore(lastRadixDeployment.Status.ActiveFrom, rd.Status.ActiveFrom) {
+			lastRadixDeployment = &rd
 		}
 	}
 	radixDeploymentCommit := RadixDeploymentCommit{}
