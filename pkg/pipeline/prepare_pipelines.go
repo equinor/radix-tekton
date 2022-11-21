@@ -36,6 +36,10 @@ func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, e
 	if err != nil {
 		return &buildContext, err
 	}
+	if gitHash == "" && ctx.env.GetRadixPipelineType() != v1.BuildDeploy {
+		// if no git hash, don't run sub-pipelines
+		return &buildContext, nil
+	}
 
 	err = git.ResetGitHead(ctx.env.GetGitRepositoryWorkspace(), gitHash)
 	if err != nil {
