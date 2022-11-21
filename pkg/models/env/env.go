@@ -14,11 +14,11 @@ type env struct {
 }
 
 func (e *env) GetSourceDeploymentGitCommitHash() string {
-	return viper.GetString("SOURCE_DEPLOYMENT_GIT_COMMIT_HASH")
+	return viper.GetString(defaults.RadixPromoteSourceDeploymentCommitHashEnvironmentVariable)
 }
 
 func (e *env) GetSourceDeploymentGitBranch() string {
-	return viper.GetString("SOURCE_DEPLOYMENT_GIT_BRANCH")
+	return viper.GetString(defaults.RadixPromoteSourceDeploymentBranchEnvironmentVariable)
 }
 
 func (e *env) GetGitConfigMapName() string {
