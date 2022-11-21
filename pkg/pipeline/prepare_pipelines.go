@@ -31,6 +31,17 @@ import (
 
 func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, error) {
 	buildContext := model.PrepareBuildContext{}
+
+	gitHash, err := ctx.getGitHash()
+	if err != nil {
+		return &buildContext, err
+	}
+
+	err = git.ResetGitHead(ctx.env.GetGitRepositoryWorkspace(), gitHash)
+	if err != nil {
+		return &buildContext, err
+	}
+
 	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
 		changedComponents, changedRadixConfig, err := ctx.prepareBuildDeployPipeline()
 		if err != nil {
