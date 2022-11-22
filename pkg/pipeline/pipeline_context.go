@@ -1,6 +1,8 @@
 package pipeline
 
 import (
+	"fmt"
+	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"strings"
 
 	"github.com/equinor/radix-common/utils"
@@ -77,7 +79,54 @@ func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv 
 	}
 }
 
-//NewPipelineContext Create new NewPipelineContext instance
+// getGitHash return git commit to which the user repository should be reset before parsing sub-pipelines.
+func (ctx *pipelineContext) getGitHash() (string, error) {
+	if ctx.env.GetRadixPipelineType() == v1.Build {
+		log.Infof("build job with no deployment, skipping sub-pipelines.")
+		return "", nil
+	}
+
+	if ctx.env.GetRadixPipelineType() == v1.Promote {
+		sourceRdHashFromAnnotation := ctx.env.GetSourceDeploymentGitCommitHash()
+		sourceDeploymentGitBranch := ctx.env.GetSourceDeploymentGitBranch()
+		if sourceRdHashFromAnnotation != "" {
+			return sourceRdHashFromAnnotation, nil
+		}
+		if sourceDeploymentGitBranch == "" {
+			log.Infof("source deployment has no git metadata, skipping sub-pipelines")
+			return "", nil
+		}
+		sourceRdHashFromBranchHead, err := git.GetGitCommitHashFromHead(ctx.env.GetGitRepositoryWorkspace(), sourceDeploymentGitBranch)
+		if err != nil {
+			return "", nil
+		}
+		return sourceRdHashFromBranchHead, nil
+	}
+
+	if ctx.env.GetRadixPipelineType() == v1.Deploy {
+		pipelineJobBranch := ctx.env.GetBranch()
+		if pipelineJobBranch == "" {
+			log.Infof("deploy job with no build branch, skipping sub-pipelines.")
+			return "", nil
+		}
+		gitHash, err := git.GetGitCommitHashFromHead(ctx.env.GetGitRepositoryWorkspace(), pipelineJobBranch)
+		if err != nil {
+			return "", err
+		}
+		return gitHash, nil
+	}
+
+	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
+		gitHash, err := git.GetGitCommitHash(ctx.env.GetGitRepositoryWorkspace(), ctx.env)
+		if err != nil {
+			return "", err
+		}
+		return gitHash, nil
+	}
+	return "", fmt.Errorf("unknown pipeline type %s", ctx.env.GetRadixPipelineType())
+}
+
+// NewPipelineContext Create new NewPipelineContext instance
 func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, environment env.Env) models.Context {
 	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
 	return &pipelineContext{

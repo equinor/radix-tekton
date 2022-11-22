@@ -26,15 +26,40 @@ type lastEnvironmentDeployCommit struct {
 	commitHash string
 }
 
+// ResetGitHead alters HEAD of the git repository on file system to point to commitHashString
+func ResetGitHead(gitWorkspace, commitHashString string) error {
+	r, err := git.PlainOpen(gitWorkspace)
+	if err != nil {
+		return err
+	}
+	log.Debugf("opened repositoryPath %s", gitWorkspace)
+
+	worktree, err := r.Worktree()
+	if err != nil {
+		return err
+	}
+
+	commitHash := plumbing.NewHash(commitHashString)
+	err = worktree.Reset(&git.ResetOptions{
+		Commit: commitHash,
+		Mode:   git.HardReset,
+	})
+	if err != nil {
+		return err
+	}
+	log.Debugf("reset HEAD to %s", commitHashString)
+	return nil
+}
+
 // GetCommitHashAndTags gets target commit hash and tags from GitHub repository
 func GetCommitHashAndTags(env env.Env) (string, string, error) {
 	gitWorkspace := env.GetGitRepositoryWorkspace()
-	targetCommitHash, err := getGitCommitHash(gitWorkspace, env)
+	targetCommitHash, err := GetGitCommitHash(gitWorkspace, env)
 	if err != nil {
 		return "", "", err
 	}
 
-	gitTags, err := getGitCommitTags(getGitDir(gitWorkspace), targetCommitHash)
+	gitTags, err := getGitCommitTags(gitWorkspace, targetCommitHash)
 	if err != nil {
 		return "", "", err
 	}
@@ -45,9 +70,9 @@ func getGitDir(gitWorkspace string) string {
 	return gitWorkspace + "/.git"
 }
 
-// getGitCommitHashFromHead returns the commit hash for the HEAD of branchName in gitDir
-func getGitCommitHashFromHead(gitDir string, branchName string) (string, error) {
-
+// GetGitCommitHashFromHead returns the commit hash for the HEAD of branchName in gitDir
+func GetGitCommitHashFromHead(gitWorkspace string, branchName string) (string, error) {
+	gitDir := getGitDir(gitWorkspace)
 	r, err := git.PlainOpen(gitDir)
 	if err != nil {
 		return "", err
@@ -66,7 +91,8 @@ func getGitCommitHashFromHead(gitDir string, branchName string) (string, error) 
 }
 
 // getGitAffectedResourcesBetweenCommits returns the list of folders, where files were affected after beforeCommitHash (not included) till targetCommitHash commit (included)
-func getGitAffectedResourcesBetweenCommits(gitDir, configBranch, configFile, targetCommitString, beforeCommitString string) ([]string, bool, error) {
+func getGitAffectedResourcesBetweenCommits(gitWorkspace, configBranch, configFile, targetCommitString, beforeCommitString string) ([]string, bool, error) {
+	gitDir := getGitDir(gitWorkspace)
 	targetCommitHash, err := getTargetCommitHash(beforeCommitString, targetCommitString)
 	if err != nil {
 		return nil, false, err
@@ -224,8 +250,8 @@ func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, 
 }
 
 // getGitCommitTags returns any git tags which point to commitHash
-func getGitCommitTags(gitDir string, commitHashString string) (string, error) {
-
+func getGitCommitTags(gitWorkspace string, commitHashString string) (string, error) {
+	gitDir := getGitDir(gitWorkspace)
 	r, err := git.PlainOpen(gitDir)
 	if err != nil {
 		return "", err
@@ -269,7 +295,9 @@ func parseTagName(rawTagName string) string {
 	return rawTagName // this line is expected to never be executed
 }
 
-func getGitCommitHash(workspace string, e env.Env) (string, error) {
+// GetGitCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
+// build branch
+func GetGitCommitHash(workspace string, e env.Env) (string, error) {
 	webhookCommitId := e.GetWebhookCommitId()
 	if webhookCommitId != "" {
 		log.Debugf("got git commit hash %s from env var %s", webhookCommitId, defaults.RadixGithubWebhookCommitId)
@@ -277,7 +305,7 @@ func getGitCommitHash(workspace string, e env.Env) (string, error) {
 	}
 	branchName := e.GetBranch()
 	log.Debugf("determining git commit hash of HEAD of branch %s", branchName)
-	gitCommitHash, err := getGitCommitHashFromHead(workspace+"/.git", branchName)
+	gitCommitHash, err := GetGitCommitHashFromHead(workspace, branchName)
 	log.Debugf("got git commit hash %s from HEAD of branch %s", gitCommitHash, branchName)
 	return gitCommitHash, err
 }
@@ -295,7 +323,7 @@ func GetChangesFromGitRepository(gitWorkspace, radixConfigBranch, radixConfigFil
 	}
 	log.Infof("Changes in GitHub repository:")
 	for envName, radixDeploymentCommit := range lastCommitHashesForEnvs {
-		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(getGitDir(gitWorkspace), radixConfigBranch, radixConfigFileName, targetCommitHash, radixDeploymentCommit.CommitHash)
+		changedFolders, radixConfigWasChangedInEnv, err := getGitAffectedResourcesBetweenCommits(gitWorkspace, radixConfigBranch, radixConfigFileName, targetCommitHash, radixDeploymentCommit.CommitHash)
 		envChanges[envName] = changedFolders
 		if err != nil {
 			return nil, false, err

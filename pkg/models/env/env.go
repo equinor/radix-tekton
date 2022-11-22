@@ -13,6 +13,14 @@ import (
 type env struct {
 }
 
+func (e *env) GetSourceDeploymentGitCommitHash() string {
+	return viper.GetString(defaults.RadixPromoteSourceDeploymentCommitHashEnvironmentVariable)
+}
+
+func (e *env) GetSourceDeploymentGitBranch() string {
+	return viper.GetString(defaults.RadixPromoteSourceDeploymentBranchEnvironmentVariable)
+}
+
 func (e *env) GetGitConfigMapName() string {
 	return viper.GetString(defaults.RadixGitConfigMapEnvironmentVariable)
 }
@@ -21,72 +29,72 @@ func (e *env) GetWebhookCommitId() string {
 	return viper.GetString(defaults.RadixGithubWebhookCommitId)
 }
 
-//GetAppNamespace Radix application app-namespace
+// GetAppNamespace Radix application app-namespace
 func (e *env) GetAppNamespace() string {
 	return utils.GetAppNamespace(viper.GetString(defaults.RadixAppEnvironmentVariable))
 }
 
-//GetAppName Radix application name
+// GetAppName Radix application name
 func (e *env) GetAppName() string {
 	return viper.GetString(defaults.RadixAppEnvironmentVariable)
 }
 
-//GetRadixConfigMapName Name of a ConfigMap, where Radix config file will be saved during RadixPipelineActionPrepare action
+// GetRadixConfigMapName Name of a ConfigMap, where Radix config file will be saved during RadixPipelineActionPrepare action
 func (e *env) GetRadixConfigMapName() string {
 	return viper.GetString(defaults.RadixConfigConfigMapEnvironmentVariable)
 }
 
-//GetRadixConfigBranch Name of the Radix application config branch
+// GetRadixConfigBranch Name of the Radix application config branch
 func (e *env) GetRadixConfigBranch() string {
 	return viper.GetString(defaults.RadixConfigBranchEnvironmentVariable)
 }
 
-//GetRadixConfigFileName Name with path to the cloned Radix config file to be saved to a ConfigMap
+// GetRadixConfigFileName Name with path to the cloned Radix config file to be saved to a ConfigMap
 func (e *env) GetRadixConfigFileName() string {
 	return viper.GetString(defaults.RadixConfigFileEnvironmentVariable)
 }
 
-//GetRadixPipelineType Type of the pipeline, value of the radixv1.RadixPipelineType
+// GetRadixPipelineType Type of the pipeline, value of the radixv1.RadixPipelineType
 func (e *env) GetRadixPipelineType() v1.RadixPipelineType {
 	return v1.RadixPipelineType(viper.GetString(defaults.RadixPipelineTypeEnvironmentVariable))
 }
 
-//GetRadixImageTag Image tag for the built component
+// GetRadixImageTag Image tag for the built component
 func (e *env) GetRadixImageTag() string {
 	return viper.GetString(defaults.RadixImageTagEnvironmentVariable)
 }
 
-//GetBranch Branch of the Radix application to process in a pipeline
+// GetBranch Branch of the Radix application to process in a pipeline
 func (e *env) GetBranch() string {
 	return viper.GetString(defaults.RadixBranchEnvironmentVariable)
 }
 
-//GetPipelinesAction  Pipeline action, one of values RadixPipelineActionPrepare, RadixPipelineActionRun
+// GetPipelinesAction  Pipeline action, one of values RadixPipelineActionPrepare, RadixPipelineActionRun
 func (e *env) GetPipelinesAction() string {
 	return viper.GetString(defaults.RadixPipelineActionEnvironmentVariable)
 }
 
-//GetRadixPipelineJobName Radix pipeline job name
+// GetRadixPipelineJobName Radix pipeline job name
 func (e *env) GetRadixPipelineJobName() string {
 	return viper.GetString(defaults.RadixPipelineJobEnvironmentVariable)
 }
 
-//GetRadixPromoteDeployment Radix pipeline promote deployment name
+// GetRadixPromoteDeployment Radix pipeline promote deployment name
 func (e *env) GetRadixPromoteDeployment() string {
 	return viper.GetString(defaults.RadixPromoteDeploymentEnvironmentVariable)
 }
 
-//GetRadixPromoteFromEnvironment Radix pipeline promote deployment source environment name
+// GetRadixPromoteFromEnvironment Radix pipeline promote deployment source environment name
 func (e *env) GetRadixPromoteFromEnvironment() string {
 	return viper.GetString(defaults.RadixPromoteFromEnvironmentEnvironmentVariable)
 }
 
-//GetRadixDeployToEnvironment Radix pipeline promote or deploy deployment target environment name
+// GetRadixDeployToEnvironment Radix pipeline promote or deploy deployment target environment name
 func (e *env) GetRadixDeployToEnvironment() string {
 	return viper.GetString(defaults.RadixPromoteToEnvironmentEnvironmentVariable)
 }
 
-//GetLogLevel Log level: ERROR, INFO (default), DEBUG
+// GetLogLevel Log level: ERROR, INFO (default), DEBUG
 func (e *env) GetLogLevel() log.Level {
 	switch viper.GetString(defaults.LogLevel) {
 	case "DEBUG":
@@ -98,7 +106,7 @@ func (e *env) GetLogLevel() log.Level {
 	}
 }
 
-//GetGitRepositoryWorkspace Path to the cloned GitHub repository
+// GetGitRepositoryWorkspace Path to the cloned GitHub repository
 func (e *env) GetGitRepositoryWorkspace() string {
 	workspace := viper.GetString(tektonDefaults.RadixGithubWorkspaceEnvironmentVariable)
 	if len(workspace) == 0 {
@@ -107,7 +115,7 @@ func (e *env) GetGitRepositoryWorkspace() string {
 	return workspace
 }
 
-//Env Environment for the pipeline
+// Env Environment for the pipeline
 type Env interface {
 	GetAppName() string
 	GetAppNamespace() string
@@ -126,9 +134,11 @@ type Env interface {
 	GetPipelinesAction() string
 	GetLogLevel() log.Level
 	GetGitRepositoryWorkspace() string
+	GetSourceDeploymentGitCommitHash() string
+	GetSourceDeploymentGitBranch() string
 }
 
-//NewEnvironment New instance of an Environment for the pipeline
+// NewEnvironment New instance of an Environment for the pipeline
 func NewEnvironment() Env {
 	viper.AutomaticEnv()
 	return &env{}

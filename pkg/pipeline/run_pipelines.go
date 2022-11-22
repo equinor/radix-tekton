@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"sort"
 	"strings"
 	"time"
@@ -21,8 +22,12 @@ import (
 	knative "knative.dev/pkg/apis/duck/v1beta1"
 )
 
-//RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
+// RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
 func (ctx *pipelineContext) RunPipelinesJob() error {
+	if ctx.GetEnv().GetRadixPipelineType() == v1.Build {
+		log.Infof("pipeline type is build, skip Tekton pipeline run.")
+		return nil
+	}
 	namespace := ctx.env.GetAppNamespace()
 	pipelineList, err := ctx.tektonClient.TektonV1beta1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, ctx.env.GetRadixPipelineJobName()),
