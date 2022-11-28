@@ -4,18 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"sort"
 	"strings"
 	"time"
 
 	commonErrors "github.com/equinor/radix-common/utils/errors"
+	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	log "github.com/sirupsen/logrus"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	tektonInformerFactory "github.com/tektoncd/pipeline/pkg/client/informers/externalversions"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 	knativeApis "knative.dev/pkg/apis"
@@ -143,12 +145,23 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *v1beta1.Pipeline, targetE
 		Spec: v1beta1.PipelineRunSpec{
 			PipelineRef: &v1beta1.PipelineRef{Name: pipeline.GetName()},
 			Params:      pipelineParams,
+			PodTemplate: ctx.buildPipelineRunPodTemplate(),
 		},
 	}
 	if ctx.ownerReference != nil {
 		pipelineRun.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 	}
 	return pipelineRun
+}
+
+func (ctx *pipelineContext) buildPipelineRunPodTemplate() *v1beta1.PodTemplate {
+	podTemplate := v1beta1.PodTemplate{}
+
+	if ctx.radixApplication != nil && len(ctx.radixApplication.Spec.PrivateImageHubs) > 0 {
+		podTemplate.ImagePullSecrets = []corev1.LocalObjectReference{{Name: operatorDefaults.PrivateImageHubSecretName}}
+	}
+
+	return &podTemplate
 }
 
 func (ctx *pipelineContext) getPipelineParams(pipeline *v1beta1.Pipeline, targetEnv string) []v1beta1.Param {
