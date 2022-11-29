@@ -3,6 +3,7 @@ package pipeline
 import (
 	"fmt"
 	"github.com/equinor/radix-tekton/pkg/utils/git"
+	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
 	"strings"
 
 	"github.com/equinor/radix-common/utils"
@@ -104,7 +105,11 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 	}
 
 	if ctx.env.GetRadixPipelineType() == v1.Deploy {
-		pipelineJobBranch := ctx.env.GetBranch()
+		pipelineJobBranch := ""
+		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.env.GetRadixDeployToEnvironment())
+		if re != nil {
+			pipelineJobBranch = re.Build.From
+		}
 		if pipelineJobBranch == "" {
 			log.Infof("deploy job with no build branch, skipping sub-pipelines.")
 			return "", nil

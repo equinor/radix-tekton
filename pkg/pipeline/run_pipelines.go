@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
 	"sort"
 	"strings"
 	"time"
@@ -52,7 +53,12 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return err
 	}
 
-	log.Infof("Run tekton pipelines for the branch %s", ctx.env.GetBranch())
+	tektonPipelineBranch := ctx.env.GetBranch()
+	if ctx.GetEnv().GetRadixPipelineType() == v1.Deploy {
+		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.env.GetRadixDeployToEnvironment())
+		tektonPipelineBranch = re.Build.From
+	}
+	log.Infof("Run tekton pipelines for the branch %s", tektonPipelineBranch)
 
 	pipelineRunMap, err := ctx.runPipelines(pipelineList.Items, namespace)
 

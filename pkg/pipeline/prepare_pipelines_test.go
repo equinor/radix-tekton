@@ -83,6 +83,12 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 			sourceFolder:   "notebooks",
 			expectedResult: false,
 		},
+		{
+			description:    "a file has changed with same name as sourceFolder",
+			changedFolders: []string{"dynageo/pages/tracers", "dynageo/pages/water_chemistry", "notebooks", "tests"},
+			sourceFolder:   "",
+			expectedResult: true,
+		},
 	}
 
 	var applicationComponent v1.RadixComponent
