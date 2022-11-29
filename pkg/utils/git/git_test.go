@@ -344,15 +344,33 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 		},
 		{
 			name:                      "Empty commit, made with 'git commit -m 'empty' --allow-empty",
-			targetCommit:              "3e7a395110c0d48bf80c4d5b695a14dbd3494059",
-			beforeCommitExclusive:     "32edacbf02d348f86bfc446c6e23cae0b7cf53b1",
+			targetCommit:              "95b2136dd7f8bd8ec52ef46897d55ba321da3abe",
+			beforeCommitExclusive:     "cdbd98a036ae5a96f5ad97d2fb225aa5e550f4c1",
 			configFile:                "app3/data/level2/radixconfig-app3-level2.yaml",
 			configBranch:              "main",
 			expectedChangedFolders:    []string{},
 			expectedChangedConfigFile: false,
 		},
+		{
+			name:                      "Changes of in-root file, used in the component with root source",
+			targetCommit:              "8b5f81bd11c1670a6894cd14abcb1c9d2cde6e7e",
+			beforeCommitExclusive:     "d897c65f4322f4dc71b33ff2fd6b365f815a2026",
+			configFile:                "radixconfig-in-root.yaml",
+			configBranch:              "main",
+			expectedChangedFolders:    []string{"."},
+			expectedChangedConfigFile: false,
+		},
+		{
+			name:                      "Changes of subfolder, used in the component with root source",
+			targetCommit:              "192e173dc968368a5dc9f42abbcbd9dab6484194",
+			beforeCommitExclusive:     "8b5f81bd11c1670a6894cd14abcb1c9d2cde6e7e",
+			configFile:                "radixconfig-in-root.yaml",
+			configBranch:              "main",
+			expectedChangedFolders:    []string{"app3/data/level2"},
+			expectedChangedConfigFile: false,
+		},
 	}
-	//gitWorkspacePath := "/users/SSMOL/dev/go/src/github.com/equinor/test-data-git-commits"
+
 	gitWorkspacePath := setupGitTest("test-data-git-commits.zip", "test-data-git-commits")
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
