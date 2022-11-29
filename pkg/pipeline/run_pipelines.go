@@ -14,6 +14,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
+	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
 	log "github.com/sirupsen/logrus"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	tektonInformerFactory "github.com/tektoncd/pipeline/pkg/client/informers/externalversions"
@@ -52,7 +53,12 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return err
 	}
 
-	log.Infof("Run tekton pipelines for the branch %s", ctx.env.GetBranch())
+	tektonPipelineBranch := ctx.env.GetBranch()
+	if ctx.GetEnv().GetRadixPipelineType() == v1.Deploy {
+		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.env.GetRadixDeployToEnvironment())
+		tektonPipelineBranch = re.Build.From
+	}
+	log.Infof("Run tekton pipelines for the branch %s", tektonPipelineBranch)
 
 	pipelineRunMap, err := ctx.runPipelines(pipelineList.Items, namespace)
 
