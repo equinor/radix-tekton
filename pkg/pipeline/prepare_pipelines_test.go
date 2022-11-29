@@ -42,12 +42,12 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 			expectedResult: true,
 		},
 		{
-			description:    "real source dir without trailing slash",
 			changedFolders: []string{"dynageo/pages/tracers", "dynageo/pages/water_chemistry", "notebooks", "tests"},
 			sourceFolder:   "./dynageo/",
 			expectedResult: true,
 		},
 		{
+			description:    "real source dir without trailing slash",
 			changedFolders: []string{"dynageo/pages/tracers", "dynageo/pages/water_chemistry", "notebooks", "tests"},
 			sourceFolder:   "./dynageo",
 			expectedResult: true,
@@ -84,7 +84,7 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 			expectedResult: false,
 		},
 		{
-			description:    "a file has changed with same name as sourceFolder",
+			description:    "empty sourceFolder",
 			changedFolders: []string{"dynageo/pages/tracers", "dynageo/pages/water_chemistry", "notebooks", "tests"},
 			sourceFolder:   "",
 			expectedResult: true,
