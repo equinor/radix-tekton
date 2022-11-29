@@ -163,12 +163,9 @@ func componentHasChangedSource(envName string, component v1.RadixCommonComponent
 	}
 
 	sourceFolder := commonUtils.TernaryString(len(component.GetSourceFolder()) == 0, ".", component.GetSourceFolder())
-	if path.Dir(sourceFolder) == path.Dir(".") && len(changedFolders) > 0 {
+	sourceFolderWithTrailingSlash := fmt.Sprintf("%s/", path.Dir(fmt.Sprintf("%s/", sourceFolder)))
+	if path.Dir(sourceFolderWithTrailingSlash) == path.Dir(".") && len(changedFolders) > 0 {
 		return true //for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
-	}
-	sourceFolderWithTrailingSlash := sourceFolder
-	if !strings.HasSuffix(sourceFolderWithTrailingSlash, "/") {
-		sourceFolderWithTrailingSlash = path.Join(sourceFolderWithTrailingSlash, "/")
 	}
 
 	for _, folder := range changedFolders {
