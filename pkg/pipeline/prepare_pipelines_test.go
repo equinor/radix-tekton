@@ -9,6 +9,7 @@ import (
 
 func Test_ComponentHasChangedSource(t *testing.T) {
 	var testScenarios = []struct {
+		description    string
 		changedFolders []string
 		sourceFolder   string
 		expectedResult bool
@@ -19,6 +20,7 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 			expectedResult: true,
 		},
 		{
+			description:    "several dots and slashes",
 			changedFolders: []string{"dynageo/pages/tracers", "dynageo/pages/water_chemistry", "notebooks", "tests"},
 			sourceFolder:   "././",
 			expectedResult: true,
@@ -34,8 +36,20 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 			expectedResult: false,
 		},
 		{
+			description:    "real source dir with trailing slash",
 			changedFolders: []string{"dynageo/pages/tracers", "dynageo/pages/water_chemistry", "notebooks", "tests"},
 			sourceFolder:   "dynageo/",
+			expectedResult: true,
+		},
+		{
+			description:    "real source dir without trailing slash",
+			changedFolders: []string{"dynageo/pages/tracers", "dynageo/pages/water_chemistry", "notebooks", "tests"},
+			sourceFolder:   "./dynageo/",
+			expectedResult: true,
+		},
+		{
+			changedFolders: []string{"dynageo/pages/tracers", "dynageo/pages/water_chemistry", "notebooks", "tests"},
+			sourceFolder:   "./dynageo",
 			expectedResult: true,
 		},
 		{
@@ -64,6 +78,7 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 			expectedResult: false,
 		},
 		{
+			description:    "a file has changed with same name as sourceFolder",
 			changedFolders: []string{"dynageo/pages/tracers", "dynageo/pages/water_chemistry", "notebooks", "tests"},
 			sourceFolder:   "notebooks",
 			expectedResult: false,
@@ -73,12 +88,15 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 	var applicationComponent v1.RadixComponent
 
 	for _, testScenario := range testScenarios {
-		applicationComponent =
-			utils.AnApplicationComponent().
-				WithName("client-component-1").
-				WithSourceFolder(testScenario.sourceFolder).
-				BuildComponent()
-		sourceHasChanged := componentHasChangedSource("someEnv", &applicationComponent, testScenario.changedFolders)
-		assert.Equal(t, sourceHasChanged, testScenario.expectedResult)
+		t.Run(testScenario.description, func(t *testing.T) {
+			applicationComponent =
+				utils.AnApplicationComponent().
+					WithName("client-component-1").
+					WithSourceFolder(testScenario.sourceFolder).
+					BuildComponent()
+			sourceHasChanged := componentHasChangedSource("someEnv", &applicationComponent, testScenario.changedFolders)
+			assert.Equal(t, sourceHasChanged, testScenario.expectedResult)
+		})
+
 	}
 }
