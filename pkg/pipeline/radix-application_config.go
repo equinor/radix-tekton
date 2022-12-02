@@ -22,21 +22,23 @@ import (
 func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 	configFileContent, err := configmap.CreateFromRadixConfigFile(ctx.env)
 	if err != nil {
-		log.Fatalf("Error copying Radix config file %s and creating config map from it: %v", ctx.GetEnv().GetRadixConfigFileName(), err)
+		return fmt.Errorf("error reading the Radix config file %s: %v", ctx.GetEnv().GetRadixConfigFileName(), err)
 	}
-	log.Debugln(fmt.Sprintf("Radix config file %s has been loaded", ctx.GetEnv().GetRadixConfigFileName()))
+	log.Debugf("Radix config file %s has been loaded", ctx.GetEnv().GetRadixConfigFileName())
 
 	ctx.radixApplication, err = ctx.createRadixApplicationFromContent(configFileContent)
 	if err != nil {
 		return err
 	}
-	log.Debugln("Radix Application has been loaded")
+	log.Debug("Radix Application has been loaded")
 
 	envIsValid, err := ctx.setTargetEnvironments()
-	if err != nil || !envIsValid {
+	if err != nil {
 		return err
 	}
-
+	if !envIsValid {
+		return ctx.createConfigMap(configFileContent, nil)
+	}
 	log.Debugln("Target environments have been loaded")
 
 	prepareBuildContext, err := ctx.preparePipelinesJob()
@@ -48,6 +50,9 @@ func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 
 func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBuildContext *model.PrepareBuildContext) error {
 	env := ctx.GetEnv()
+	if prepareBuildContext == nil {
+		prepareBuildContext = &model.PrepareBuildContext{}
+	}
 	buildContext, err := yaml.Marshal(prepareBuildContext)
 	if err != nil {
 		return err
@@ -75,6 +80,7 @@ func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBui
 }
 
 func (ctx *pipelineContext) setTargetEnvironments() (bool, error) {
+	log.Debug("Set target environment")
 	if ctx.GetEnv().GetRadixPipelineType() == v1.Promote {
 		return true, ctx.setTargetEnvironmentsForPromote()
 	}
@@ -83,7 +89,7 @@ func (ctx *pipelineContext) setTargetEnvironments() (bool, error) {
 	}
 	branchIsMapped, targetEnvironments := applicationconfig.IsThereAnythingToDeployForRadixApplication(ctx.env.GetBranch(), ctx.radixApplication)
 	if !branchIsMapped {
-		log.Infof("no environments are mapped to the branch %s", ctx.env.GetBranch())
+		log.Infof("no environments are mapped to the branch %s - build of components will be skipped", ctx.env.GetBranch())
 		return false, nil
 	}
 	ctx.targetEnvironments = make(map[string]bool)
