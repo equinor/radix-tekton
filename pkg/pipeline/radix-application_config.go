@@ -32,15 +32,10 @@ func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 	}
 	log.Debug("Radix Application has been loaded")
 
-	envIsValid, err := ctx.setTargetEnvironments()
+	err = ctx.setTargetEnvironments()
 	if err != nil {
 		return err
 	}
-	if !envIsValid {
-		return ctx.createConfigMap(configFileContent, nil)
-	}
-	log.Debugln("Target environments have been loaded")
-
 	prepareBuildContext, err := ctx.preparePipelinesJob()
 	if err != nil {
 		return err
@@ -79,28 +74,28 @@ func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBui
 	return nil
 }
 
-func (ctx *pipelineContext) setTargetEnvironments() (bool, error) {
+func (ctx *pipelineContext) setTargetEnvironments() error {
 	log.Debug("Set target environment")
 	if ctx.GetEnv().GetRadixPipelineType() == v1.Promote {
-		return true, ctx.setTargetEnvironmentsForPromote()
+		return ctx.setTargetEnvironmentsForPromote()
 	}
 	if ctx.GetEnv().GetRadixPipelineType() == v1.Deploy {
-		return true, ctx.setTargetEnvironmentsForDeploy()
+		return ctx.setTargetEnvironmentsForDeploy()
 	}
-	branchIsMapped, targetEnvironments := applicationconfig.IsThereAnythingToDeployForRadixApplication(ctx.env.GetBranch(), ctx.radixApplication)
-	if !branchIsMapped {
-		log.Infof("no environments are mapped to the branch %s - build of components will be skipped", ctx.env.GetBranch())
-		return false, nil
-	}
+	_, targetEnvironments := applicationconfig.IsThereAnythingToDeployForRadixApplication(ctx.env.GetBranch(), ctx.radixApplication)
 	ctx.targetEnvironments = make(map[string]bool)
 	for envName, isEnvTarget := range targetEnvironments {
 		if isEnvTarget { //get only target environments
 			ctx.targetEnvironments[envName] = true
 		}
 	}
-	log.Infof("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())
+	if len(ctx.targetEnvironments) > 0 {
+		log.Infof("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())
+	} else {
+		log.Infof("No environments are mapped to the branch %s.", ctx.env.GetBranch())
+	}
 	log.Infof("pipeline type: %s", ctx.env.GetRadixPipelineType())
-	return true, nil
+	return nil
 }
 
 func (ctx *pipelineContext) setTargetEnvironmentsForPromote() error {
