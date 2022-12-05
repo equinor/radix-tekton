@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
@@ -34,7 +34,7 @@ func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, e
 
 	gitHash, err := ctx.getGitHash()
 	if err != nil {
-		return &buildContext, err
+		return nil, err
 	}
 	if gitHash == "" && ctx.env.GetRadixPipelineType() != v1.BuildDeploy {
 		// if no git hash, don't run sub-pipelines
@@ -43,7 +43,7 @@ func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, e
 
 	err = git.ResetGitHead(ctx.env.GetGitRepositoryWorkspace(), gitHash)
 	if err != nil {
-		return &buildContext, err
+		return nil, err
 	}
 
 	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
