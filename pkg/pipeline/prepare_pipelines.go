@@ -162,18 +162,27 @@ func componentHasChangedSource(envName string, component v1.RadixCommonComponent
 		return false
 	}
 
-	sourceFolder := commonUtils.TernaryString(len(component.GetSourceFolder()) == 0, ".", component.GetSourceFolder())
-	sourceFolderWithTrailingSlash := fmt.Sprintf("%s/", path.Dir(fmt.Sprintf("%s/", sourceFolder)))
-	if path.Dir(sourceFolderWithTrailingSlash) == path.Dir(".") && len(changedFolders) > 0 {
+	sourceFolder := cleanAndSurroundBySlashes(component.GetSourceFolder())
+	if path.Dir(sourceFolder) == path.Dir("/") && len(changedFolders) > 0 {
 		return true //for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
 	}
 
 	for _, folder := range changedFolders {
-		if strings.HasPrefix(folder, sourceFolderWithTrailingSlash) {
+		if strings.HasPrefix(cleanAndSurroundBySlashes(folder), sourceFolder) {
 			return true
 		}
 	}
 	return false
+}
+
+func cleanAndSurroundBySlashes(dir string) string {
+	if !strings.HasSuffix(dir, "/") {
+		dir = fmt.Sprintf("%s/", dir)
+	}
+	if !strings.HasPrefix(dir, "/") {
+		return fmt.Sprintf("/%s/", path.Dir(dir))
+	}
+	return path.Dir(dir)
 }
 
 func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, envName, timestamp string) (bool, string, error) {
