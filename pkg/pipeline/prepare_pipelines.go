@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	commonUtils "github.com/equinor/radix-common/utils"
 	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
@@ -34,7 +34,7 @@ func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, e
 
 	gitHash, err := ctx.getGitHash()
 	if err != nil {
-		return &buildContext, err
+		return nil, err
 	}
 	if gitHash == "" && ctx.env.GetRadixPipelineType() != v1.BuildDeploy {
 		// if no git hash, don't run sub-pipelines
@@ -43,7 +43,7 @@ func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, e
 
 	err = git.ResetGitHead(ctx.env.GetGitRepositoryWorkspace(), gitHash)
 	if err != nil {
-		return &buildContext, err
+		return nil, err
 	}
 
 	if ctx.env.GetRadixPipelineType() == v1.BuildDeploy {
@@ -162,18 +162,28 @@ func componentHasChangedSource(envName string, component v1.RadixCommonComponent
 		return false
 	}
 
-	sourceFolder := commonUtils.TernaryString(len(component.GetSourceFolder()) == 0, ".", component.GetSourceFolder())
-	sourceFolderWithTrailingSlash := fmt.Sprintf("%s/", path.Dir(fmt.Sprintf("%s/", sourceFolder)))
-	if path.Dir(sourceFolderWithTrailingSlash) == path.Dir(".") && len(changedFolders) > 0 {
+	sourceFolder := cleanPathAndSurroundBySlashes(component.GetSourceFolder())
+	if path.Dir(sourceFolder) == path.Dir("/") && len(changedFolders) > 0 {
 		return true //for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
 	}
 
 	for _, folder := range changedFolders {
-		if strings.HasPrefix(folder, sourceFolderWithTrailingSlash) {
+		if strings.HasPrefix(cleanPathAndSurroundBySlashes(folder), sourceFolder) {
 			return true
 		}
 	}
 	return false
+}
+
+func cleanPathAndSurroundBySlashes(dir string) string {
+	if !strings.HasSuffix(dir, "/") {
+		dir = fmt.Sprintf("%s/", dir)
+	}
+	dir = fmt.Sprintf("%s/", path.Dir(dir))
+	if !strings.HasPrefix(dir, "/") {
+		return fmt.Sprintf("/%s", dir)
+	}
+	return dir
 }
 
 func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, envName, timestamp string) (bool, string, error) {

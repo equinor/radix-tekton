@@ -36,7 +36,7 @@ func setLogLevel(environment env.Env) {
 }
 func runAction(ctx models.Context) error {
 	action := ctx.GetEnv().GetPipelinesAction()
-	log.Infof("execute an action %s", action)
+	log.Debugf("execute an action %s", action)
 	switch action {
 	case pipelineDefaults.RadixPipelineActionPrepare:
 		return ctx.ProcessRadixAppConfig()
