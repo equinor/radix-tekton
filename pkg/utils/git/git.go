@@ -282,7 +282,7 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 		}
 		if *revHash == commitHash {
 			rawTagName := string(t.Name())
-			tagName := parseTagName(rawTagName)
+			tagName := strings.TrimPrefix(rawTagName, "refs/tags/")
 			tagNames = append(tagNames, tagName)
 		}
 		return nil
@@ -294,14 +294,6 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 	tagNamesString := strings.Join(tagNames, " ")
 
 	return tagNamesString, nil
-}
-
-func parseTagName(rawTagName string) string {
-	prefixToRemove := "refs/tags/"
-	if rawTagName[:len(prefixToRemove)] == prefixToRemove {
-		return rawTagName[len(prefixToRemove):]
-	}
-	return rawTagName // this line is expected to never be executed
 }
 
 // GetGitCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
