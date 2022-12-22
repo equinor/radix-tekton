@@ -125,7 +125,7 @@ func TestGetGitCommitTags(t *testing.T) {
 	tag0 := "special&%¤tag"
 	tag1 := "tag-contains@at-sign"
 	tag2 := "v1.12"
-	println(tag2)
+
 	commitHash, err := GetGitCommitHashFromHead(gitDirPath, branchName)
 	assert.NoError(t, err)
 	tagsString, err := getGitCommitTags(gitDirPath, commitHash)
