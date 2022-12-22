@@ -270,7 +270,8 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 	err = tags.ForEach(func(t *plumbing.Reference) error {
 		log.Debugf("resolving commit hash of tag %s", t.Name())
 		// using workaround to circumvent tag resolution bug documented at https://github.com/go-git/go-git/issues/204
-		tagRef, err := r.Tag(strings.TrimPrefix(string(t.Name()), "refs/tags/"))
+		tagName := strings.TrimPrefix(string(t.Name()), "refs/tags/")
+		tagRef, err := r.Tag(tagName)
 		if err != nil {
 			log.Warnf("could not resolve commit hash of tag %s: %v", t.Name(), err)
 			return nil
@@ -281,14 +282,13 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 			return nil
 		}
 		if *revHash == commitHash {
-			rawTagName := string(t.Name())
-			tagName := strings.TrimPrefix(rawTagName, "refs/tags/")
 			tagNames = append(tagNames, tagName)
 		}
 		return nil
 	})
 	if err != nil {
-		return "", err
+		log.Warnf("could not resolve tags: %v", err)
+		return "", nil
 	}
 
 	tagNamesString := strings.Join(tagNames, " ")
