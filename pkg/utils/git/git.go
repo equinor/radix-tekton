@@ -259,6 +259,7 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 
 	commitHash := plumbing.NewHash(commitHashString)
 
+	log.Debugf("getting all tags for repository")
 	tags, err := r.Tags()
 	if err != nil {
 		return "", err
@@ -267,9 +268,11 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 
 	// List all tags, both lightweight tags and annotated tags and see if any tags point to HEAD reference.
 	err = tags.ForEach(func(t *plumbing.Reference) error {
+		log.Debugf("resolving commit hash of tag %s", t.Name())
 		revHash, err := r.ResolveRevision(plumbing.Revision(t.Name()))
 		if err != nil {
-			return err
+			log.Warnf("could not resolve commit hash of tag %s: %v", t.Name(), err)
+			return nil
 		}
 		if *revHash == commitHash {
 			rawTagName := string(t.Name())
