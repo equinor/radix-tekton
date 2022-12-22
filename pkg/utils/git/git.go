@@ -269,7 +269,9 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 	// List all tags, both lightweight tags and annotated tags and see if any tags point to HEAD reference.
 	err = tags.ForEach(func(t *plumbing.Reference) error {
 		log.Debugf("resolving commit hash of tag %s", t.Name())
-		revHash, err := r.ResolveRevision(plumbing.Revision(t.Name()))
+		// using workaround to circumvent tag resolution bug documented at https://github.com/go-git/go-git/issues/204
+		tagRef, err := r.Tag(strings.TrimPrefix(string(t.Name()), "refs/tags/"))
+		revHash, err := r.ResolveRevision(plumbing.Revision(tagRef.Hash().String()))
 		if err != nil {
 			log.Warnf("could not resolve commit hash of tag %s: %v", t.Name(), err)
 			return nil
