@@ -123,7 +123,9 @@ func TestGetGitCommitTags(t *testing.T) {
 
 	branchName := "branch-with-tags"
 	tag0 := "special&%¤tag"
-	tag1 := "v1.12"
+	tag1 := "tag-contains@at-sign"
+	tag2 := "v1.12"
+
 	commitHash, err := GetGitCommitHashFromHead(gitDirPath, branchName)
 	assert.NoError(t, err)
 	tagsString, err := getGitCommitTags(gitDirPath, commitHash)
@@ -131,6 +133,7 @@ func TestGetGitCommitTags(t *testing.T) {
 	tags := strings.Split(tagsString, " ")
 	assert.Equal(t, tag0, tags[0])
 	assert.Equal(t, tag1, tags[1])
+	assert.Equal(t, tag2, tags[2])
 
 	tearDownGitTest()
 }

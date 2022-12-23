@@ -259,6 +259,7 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 
 	commitHash := plumbing.NewHash(commitHashString)
 
+	log.Debugf("getting all tags for repository")
 	tags, err := r.Tags()
 	if err != nil {
 		return "", err
@@ -267,32 +268,32 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 
 	// List all tags, both lightweight tags and annotated tags and see if any tags point to HEAD reference.
 	err = tags.ForEach(func(t *plumbing.Reference) error {
-		revHash, err := r.ResolveRevision(plumbing.Revision(t.Name()))
+		log.Debugf("resolving commit hash of tag %s", t.Name())
+		// using workaround to circumvent tag resolution bug documented at https://github.com/go-git/go-git/issues/204
+		tagName := strings.TrimPrefix(string(t.Name()), "refs/tags/")
+		tagRef, err := r.Tag(tagName)
 		if err != nil {
-			return err
+			log.Warnf("could not resolve commit hash of tag %s: %v", t.Name(), err)
+			return nil
+		}
+		revHash, err := r.ResolveRevision(plumbing.Revision(tagRef.Hash().String()))
+		if err != nil {
+			log.Warnf("could not resolve commit hash of tag %s: %v", t.Name(), err)
+			return nil
 		}
 		if *revHash == commitHash {
-			rawTagName := string(t.Name())
-			tagName := parseTagName(rawTagName)
 			tagNames = append(tagNames, tagName)
 		}
 		return nil
 	})
 	if err != nil {
-		return "", err
+		log.Warnf("could not resolve tags: %v", err)
+		return "", nil
 	}
 
 	tagNamesString := strings.Join(tagNames, " ")
 
 	return tagNamesString, nil
-}
-
-func parseTagName(rawTagName string) string {
-	prefixToRemove := "refs/tags/"
-	if rawTagName[:len(prefixToRemove)] == prefixToRemove {
-		return rawTagName[len(prefixToRemove):]
-	}
-	return rawTagName // this line is expected to never be executed
 }
 
 // GetGitCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
