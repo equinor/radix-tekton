@@ -3,8 +3,8 @@ module github.com/equinor/radix-tekton
 go 1.18
 
 require (
-	github.com/equinor/radix-common v1.2.5
-	github.com/equinor/radix-operator v1.31.12
+	github.com/equinor/radix-common v1.2.7
+	github.com/equinor/radix-operator v1.99.1000-0.20230227171534-a9b0f474980d
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/goccy/go-yaml v1.9.5
 	github.com/golang/mock v1.6.0
