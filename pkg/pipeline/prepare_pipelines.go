@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/equinor/radix-common/utils"
 	commonUtils "github.com/equinor/radix-common/utils"
 	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/maps"
@@ -345,7 +344,7 @@ func getShortName(name string) string {
 	if len(name) > 4 {
 		name = name[:4]
 	}
-	return fmt.Sprintf("%s-%s", name, strings.ToLower(utils.RandStringStrSeed(5, name)))
+	return fmt.Sprintf("%s-%s", name, strings.ToLower(commonUtils.RandStringStrSeed(5, name)))
 }
 
 func (ctx *pipelineContext) getPipeline(pipelineFileName string) (*v1beta1.Pipeline, error) {
