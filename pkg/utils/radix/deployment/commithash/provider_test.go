@@ -10,7 +10,6 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-tekton/pkg/utils/test"
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -346,9 +345,4 @@ func prepareTestGetLastSuccessfulEnvironmentDeployCommits(t *testing.T, appName 
 		_, _ = radixClient.RadixV1().RadixJobs(pipelineJob.GetNamespace()).Create(context.Background(), pipelineJob, metav1.CreateOptions{})
 	}
 	return NewProvider(kubeClient, radixClient, appName, scenario.environments)
-}
-
-func setupLog(t *testing.T) {
-	log.AddHook(test.NewTestLogHook(t, log.DebugLevel).
-		ModifyFormatter(func(f *log.TextFormatter) { f.DisableTimestamp = true }))
 }

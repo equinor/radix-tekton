@@ -33,7 +33,11 @@ func getOwnerReferencePropertiesFromDownwardsApiFile() (string, string, error) {
 		return "", "", fmt.Errorf("missing the file with labels %s - ownerReference is not set to the pod", labelsFile)
 	}
 	file, err := os.Open(labelsFile)
-	defer file.Close()
+	defer func() {
+		if err == nil {
+			file.Close()
+		}
+	}()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to read the labels file %s: %v", labelsFile, err)
 	}
