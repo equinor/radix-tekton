@@ -21,11 +21,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type lastEnvironmentDeployCommit struct {
-	envName    string
-	commitHash string
-}
-
 // ResetGitHead alters HEAD of the git repository on file system to point to commitHashString
 func ResetGitHead(gitWorkspace, commitHashString string) error {
 	r, err := git.PlainOpen(gitWorkspace)
@@ -241,7 +236,7 @@ func getBranchCommitHash(r *git.Repository, branchName string) (*plumbing.Hash, 
 		commitHash, err = r.ResolveRevision(plumbing.Revision(fmt.Sprintf("refs/remotes/origin/%s", branchName)))
 		if err != nil {
 			if strings.EqualFold(err.Error(), "reference not found") {
-				return nil, errors.New(fmt.Sprintf("there is no branch %s or access to the repository", branchName))
+				return nil, fmt.Errorf("there is no branch %s or access to the repository", branchName)
 			}
 			return nil, err
 		}

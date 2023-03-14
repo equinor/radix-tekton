@@ -56,3 +56,7 @@ deploy:
 	docker push $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH)-$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-tekton:$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-tekton:$(TAG)
+
+.PHONY: staticcheck
+staticcheck:
+	staticcheck `go list ./... | grep -v "pkg/client"` &&     go vet `go list ./... | grep -v "pkg/client"`

@@ -85,11 +85,8 @@ func readConfigFile(filename string) ([]byte, error) {
 }
 
 func filenameCandidates(filename string) []string {
-	if strings.HasSuffix(filename, ".yaml") {
-		filename = filename[:len(filename)-5]
-	} else if strings.HasSuffix(filename, ".yml") {
-		filename = filename[:len(filename)-4]
-	}
+	filename = strings.TrimSuffix(filename, ".yaml")
+	filename = strings.TrimSuffix(filename, ".yml")
 
 	return []string{
 		filename + ".yaml",

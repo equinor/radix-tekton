@@ -84,7 +84,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 
 func (ctx *pipelineContext) getTargetEnvsAsString() string {
 	var envs []string
-	for envName, _ := range ctx.targetEnvironments {
+	for envName := range ctx.targetEnvironments {
 		envs = append(envs, envName)
 	}
 	return strings.Join(envs, ", ")
