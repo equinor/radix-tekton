@@ -3,7 +3,7 @@ package configmap
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -76,7 +76,7 @@ func readConfigFile(filename string) ([]byte, error) {
 	var content []byte
 	var err error
 	for _, filename := range filenameCandidates(filename) {
-		content, err = ioutil.ReadFile(filename)
+		content, err = os.ReadFile(filename)
 		if err == nil {
 			break
 		}

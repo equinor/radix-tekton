@@ -3,6 +3,7 @@ VERSION 	?= latest
 
 DNS_ZONE = dev.radix.equinor.com
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+TAG_SAFE_BRANCH_NAME := $(shell echo ${BRANCH} | tr '/' '_')
 
 # If you want to escape branch-environment constraint, pass in OVERRIDE_BRANCH=true
 
@@ -26,8 +27,10 @@ HASH := $(shell git rev-parse HEAD)
 
 CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut -f 3 -d ' ')
 
-TAG := $(BRANCH)-$(HASH)
+TAG := $(TAG_SAFE_BRANCH_NAME)-$(HASH)
+BRANCH_TAG := $(TAG_SAFE_BRANCH_NAME)-$(VERSION)
 
+.PHONY: echo
 echo:
 	@echo "ENVIRONMENT : " $(ENVIRONMENT)
 	@echo "DNS_ZONE : " $(DNS_ZONE)
@@ -39,24 +42,24 @@ echo:
 	@echo "IS_DEV : " $(IS_DEV)
 	@echo "VERSION : " $(VERSION)
 	@echo "TAG : " $(TAG)
+	@echo "BRANCH_TAG : " $(BRANCH_TAG)
+
 
 .PHONY: test
 test:	
 	go test -cover `go list ./... | grep -v 'pkg/client'`
 
-mocks:
-	mockgen -source ./pkg/models/env/env.go -destination ./pkg/mock/env_mock.go -package models
-
+.PHONY: build
 build:
-	docker build -t $(DOCKER_REGISTRY)/radix-tekton:$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(TAG) -f Dockerfile .
+	docker build -t $(DOCKER_REGISTRY)/radix-tekton:$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH_TAG) -t $(DOCKER_REGISTRY)/radix-tekton:$(TAG) -f Dockerfile .
 
-deploy:
+.PHONY: deploy
+deploy: build
 	az acr login --name $(CONTAINER_REPO)
-	make build
-	docker push $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH)-$(VERSION)
+	docker push $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH_TAG)
 	docker push $(DOCKER_REGISTRY)/radix-tekton:$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-tekton:$(TAG)
 
 .PHONY: staticcheck
 staticcheck:
-	staticcheck `go list ./... | grep -v "pkg/client"` &&     go vet `go list ./... | grep -v "pkg/client"`
+	staticcheck ./... && go vet ./...
