@@ -14,7 +14,7 @@ import (
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
@@ -265,6 +265,9 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	securityContext.RunAsNonRoot = commonUtils.BoolPtr(true)
 	securityContext.Privileged = commonUtils.BoolPtr(false)
 	securityContext.AllowPrivilegeEscalation = commonUtils.BoolPtr(false)
+	if securityContext.Capabilities == nil {
+		securityContext.Capabilities = &corev1.Capabilities{}
+	}
 	securityContext.Capabilities.Drop = []corev1.Capability{"ALL"}
 }
 
