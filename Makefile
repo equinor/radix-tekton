@@ -28,6 +28,7 @@ CLUSTER_NAME = $(shell kubectl config get-contexts | grep '*' | tr -s ' ' | cut 
 
 TAG := $(BRANCH)-$(HASH)
 
+.PHONY: echo
 echo:
 	@echo "ENVIRONMENT : " $(ENVIRONMENT)
 	@echo "DNS_ZONE : " $(DNS_ZONE)
@@ -44,12 +45,11 @@ echo:
 test:	
 	go test -cover `go list ./... | grep -v 'pkg/client'`
 
-mocks:
-	mockgen -source ./pkg/models/env/env.go -destination ./pkg/mock/env_mock.go -package models
-
+.PHONY: build
 build:
 	docker build -t $(DOCKER_REGISTRY)/radix-tekton:$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH)-$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(TAG) -f Dockerfile .
 
+.PHONY: deploy
 deploy:
 	az acr login --name $(CONTAINER_REPO)
 	make build
