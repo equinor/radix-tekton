@@ -16,6 +16,7 @@ import (
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
 	log "github.com/sirupsen/logrus"
+	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	tektonInformerFactory "github.com/tektoncd/pipeline/pkg/client/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
@@ -160,8 +161,8 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *v1beta1.Pipeline, targetE
 	return pipelineRun
 }
 
-func (ctx *pipelineContext) buildPipelineRunPodTemplate() *v1beta1.PodTemplate {
-	podTemplate := v1beta1.PodTemplate{}
+func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
+	podTemplate := pod.Template{}
 
 	if ctx.radixApplication != nil && len(ctx.radixApplication.Spec.PrivateImageHubs) > 0 {
 		podTemplate.ImagePullSecrets = []corev1.LocalObjectReference{{Name: operatorDefaults.PrivateImageHubSecretName}}
