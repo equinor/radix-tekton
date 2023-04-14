@@ -2,7 +2,9 @@ package pipeline
 
 import (
 	"context"
+	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/golang/mock/gomock"
+	corev1 "k8s.io/api/core/v1"
 	"testing"
 
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -227,6 +229,93 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Equal(t, appName, pipeline.ObjectMeta.OwnerReferences[0].Name)
 			},
 		},
+		{
+			name: "set SecurityContexts in task step",
+			fields: fields{
+				targetEnvironments: map[string]bool{envDev: true},
+			},
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
+					task.Spec = tekton.TaskSpec{
+						Steps: []tekton.Step{{Name: "step1"}},
+					}
+				})}, timestamp: "2020-01-01T00:00:00Z"},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, ctx *pipelineContext) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				assert.Nil(t, err)
+				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
+				task := pipeline.Spec.Tasks[0]
+				assert.Equal(t, 1, len(task.TaskSpec.Steps))
+				step := task.TaskSpec.Steps[0]
+				assert.NotNil(t, step.SecurityContext)
+				assert.Equal(t, commonUtils.BoolPtr(true), step.SecurityContext.RunAsNonRoot)
+				assert.Equal(t, commonUtils.BoolPtr(false), step.SecurityContext.Privileged)
+				assert.Equal(t, commonUtils.BoolPtr(false), step.SecurityContext.AllowPrivilegeEscalation)
+				assert.NotNil(t, step.SecurityContext.Capabilities)
+				assert.Equal(t, []corev1.Capability{"ALL"}, step.SecurityContext.Capabilities.Drop)
+			},
+		},
+		{
+			name: "set SecurityContexts in task sidecar",
+			fields: fields{
+				targetEnvironments: map[string]bool{envDev: true},
+			},
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
+					task.Spec = tekton.TaskSpec{
+						Steps: []tekton.Step{{Name: "step1"}},
+					}
+				})}, timestamp: "2020-01-01T00:00:00Z"},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, ctx *pipelineContext) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				assert.Nil(t, err)
+				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
+				task := pipeline.Spec.Tasks[0]
+				assert.Equal(t, 1, len(task.TaskSpec.Sidecars))
+				sidecar := task.TaskSpec.Sidecars[0]
+				assert.NotNil(t, sidecar.SecurityContext)
+				assert.Equal(t, commonUtils.BoolPtr(true), sidecar.SecurityContext.RunAsNonRoot)
+				assert.Equal(t, commonUtils.BoolPtr(false), sidecar.SecurityContext.Privileged)
+				assert.Equal(t, commonUtils.BoolPtr(false), sidecar.SecurityContext.AllowPrivilegeEscalation)
+				assert.NotNil(t, sidecar.SecurityContext.Capabilities)
+				assert.Equal(t, []corev1.Capability{"ALL"}, sidecar.SecurityContext.Capabilities.Drop)
+			},
+		},
+		{
+			name: "set SecurityContexts in task stepTemplate",
+			fields: fields{
+				targetEnvironments: map[string]bool{envDev: true},
+			},
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
+					task.Spec = tekton.TaskSpec{
+						Steps: []tekton.Step{{Name: "step1"}},
+					}
+				})}, timestamp: "2020-01-01T00:00:00Z"},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, ctx *pipelineContext) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				assert.Nil(t, err)
+				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
+				task := pipeline.Spec.Tasks[0]
+				stepTemplate := task.TaskSpec.StepTemplate
+				assert.NotNil(t, stepTemplate)
+				assert.NotNil(t, stepTemplate.SecurityContext)
+				assert.Equal(t, commonUtils.BoolPtr(true), stepTemplate.SecurityContext.RunAsNonRoot)
+				assert.Equal(t, commonUtils.BoolPtr(false), stepTemplate.SecurityContext.Privileged)
+				assert.Equal(t, commonUtils.BoolPtr(false), stepTemplate.SecurityContext.AllowPrivilegeEscalation)
+				assert.NotNil(t, stepTemplate.SecurityContext.Capabilities)
+				assert.Equal(t, []corev1.Capability{"ALL"}, stepTemplate.SecurityContext.Capabilities.Drop)
+			},
+		},
 	}
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
@@ -251,6 +340,16 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 					mockEnv.EXPECT().GetBranch().Return(branchMain).AnyTimes()
 					mockEnv.EXPECT().GetAppNamespace().Return(utils.GetAppNamespace(appName)).AnyTimes()
 				})
+			}
+			if ctx.ownerReference == nil {
+				ctx.ownerReference = &metav1.OwnerReference{
+					APIVersion: "radix.equinor.com/v1",
+					Kind:       "RadixApplication",
+					Name:       appName,
+				}
+			}
+			if ctx.hash == "" {
+				ctx.hash = hash
 			}
 			scenario.wantErr(t, ctx.createPipeline(scenario.args.envName, scenario.args.pipeline, scenario.args.tasks, scenario.args.timestamp))
 		})
