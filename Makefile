@@ -60,6 +60,10 @@ deploy: build
 	docker push $(DOCKER_REGISTRY)/radix-tekton:$(VERSION)
 	docker push $(DOCKER_REGISTRY)/radix-tekton:$(TAG)
 
+.PHONY: mocks
+mocks:
+	mockgen -source ./pkg/models/env/env.go -destination ./pkg/models/env/env_mock.go -package env
+
 .PHONY: staticcheck
 staticcheck:
 	staticcheck ./... && go vet ./...

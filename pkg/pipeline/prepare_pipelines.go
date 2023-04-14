@@ -349,7 +349,9 @@ func (ctx *pipelineContext) createTasks(taskMap map[string]v1beta1.Task) error {
 	for _, task := range taskMap {
 		_, err := ctx.tektonClient.TektonV1beta1().Tasks(namespace).Create(context.Background(), &task,
 			metav1.CreateOptions{})
-		errs = append(errs, fmt.Errorf("task %s has not been created. Error: %w", task.Name, err))
+		if err != nil {
+			errs = append(errs, fmt.Errorf("task %s has not been created. Error: %w", task.Name, err))
+		}
 	}
 	return commonErrors.Concat(errs)
 }
