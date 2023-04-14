@@ -65,11 +65,10 @@ func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, e
 func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.EnvironmentSubPipelineToRun, error) {
 	var environmentSubPipelinesToRun []model.EnvironmentSubPipelineToRun
 	var errs []error
-	appNamespace := ctx.env.GetAppNamespace()
 	timestamp := time.Now().Format("20060102150405")
 	for targetEnv := range ctx.targetEnvironments {
 		log.Debugf("create a sub-pipeline for the environment %s", targetEnv)
-		runSubPipeline, pipelineFilePath, err := ctx.preparePipelinesJobForTargetEnv(appNamespace, targetEnv, timestamp)
+		runSubPipeline, pipelineFilePath, err := ctx.preparePipelinesJobForTargetEnv(targetEnv, timestamp)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -163,7 +162,7 @@ func componentHasChangedSource(envName string, component v1.RadixCommonComponent
 
 	sourceFolder := cleanPathAndSurroundBySlashes(component.GetSourceFolder())
 	if path.Dir(sourceFolder) == path.Dir("/") && len(changedFolders) > 0 {
-		return true //for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
+		return true // for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
 	}
 
 	for _, folder := range changedFolders {
@@ -185,8 +184,8 @@ func cleanPathAndSurroundBySlashes(dir string) string {
 	return dir
 }
 
-func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, envName, timestamp string) (bool, string, error) {
-	pipelineFilePath, err := ctx.getPipelineFilePath("") //TODO - get pipeline for the envName
+func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(envName, timestamp string) (bool, string, error) {
+	pipelineFilePath, err := ctx.getPipelineFilePath("") // TODO - get pipeline for the envName
 	if err != nil {
 		return false, "", err
 	}
@@ -200,7 +199,7 @@ func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, envName, 
 		return false, "", err
 	}
 
-	pipeline, err := ctx.getPipeline(pipelineFilePath)
+	pipeline, err := getPipeline(pipelineFilePath)
 	if err != nil {
 		return false, "", err
 	}
@@ -211,16 +210,10 @@ func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(namespace, envName, 
 		return false, "", err
 	}
 	log.Debug("all pipeline tasks found")
-	taskMap, err := ctx.createTasks(namespace, envName, tasks, timestamp)
+	err = ctx.createPipeline(envName, pipeline, tasks, timestamp)
 	if err != nil {
 		return false, "", err
 	}
-
-	createdPipeline, err := ctx.createPipeline(namespace, envName, pipeline, taskMap, timestamp)
-	if err != nil {
-		return false, "", err
-	}
-	log.Infof("created the pipeline %s for the environment %s", createdPipeline.Name, envName)
 	return true, pipelineFilePath, nil
 }
 
@@ -229,39 +222,46 @@ func (ctx *pipelineContext) pipelineFileExists(pipelineFilePath string) error {
 	return err
 }
 
-func (ctx *pipelineContext) createTasks(namespace string, envName string, tasks []v1beta1.Task, timestamp string) (map[string]v1beta1.Task, error) {
-	var createTaskErrors []error
+func (ctx *pipelineContext) buildTasks(envName string, tasks []v1beta1.Task, timestamp string) map[string]v1beta1.Task {
 	taskMap := make(map[string]v1beta1.Task)
 	for _, task := range tasks {
 		originalTaskName := task.Name
-		ensureCorrectSecureContext(&task)
-		createdTask, err := ctx.createTask(namespace, envName, originalTaskName, task, timestamp)
-		if err != nil {
-			createTaskErrors = append(createTaskErrors, err)
-			continue
+		taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
+		task.ObjectMeta.Name = taskName
+		task.ObjectMeta.Annotations = map[string]string{defaults.PipelineTaskNameAnnotation: originalTaskName}
+		task.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, envName)
+		if ctx.ownerReference != nil {
+			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 		}
-		taskMap[originalTaskName] = *createdTask
+		ensureCorrectSecureContext(&task)
+		taskMap[originalTaskName] = task
 		log.Debugf("created the task %s", task.Name)
 	}
-	return taskMap, commonErrors.Concat(createTaskErrors)
+	return taskMap
 }
 
 func ensureCorrectSecureContext(task *v1beta1.Task) {
 	for _, step := range task.Spec.Steps {
+		if step.SecurityContext == nil {
+			step.SecurityContext = &corev1.SecurityContext{}
+		}
 		setNotElevatedPrivileges(step.SecurityContext)
 	}
 	for _, sidecar := range task.Spec.Sidecars {
+		if sidecar.SecurityContext == nil {
+			sidecar.SecurityContext = &corev1.SecurityContext{}
+		}
 		setNotElevatedPrivileges(sidecar.SecurityContext)
 	}
 	if task.Spec.StepTemplate != nil {
+		if task.Spec.StepTemplate.SecurityContext == nil {
+			task.Spec.StepTemplate.SecurityContext = &corev1.SecurityContext{}
+		}
 		setNotElevatedPrivileges(task.Spec.StepTemplate.SecurityContext)
 	}
 }
 
 func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
-	if securityContext == nil {
-		return
-	}
 	securityContext.RunAsNonRoot = commonUtils.BoolPtr(true)
 	securityContext.Privileged = commonUtils.BoolPtr(false)
 	securityContext.AllowPrivilegeEscalation = commonUtils.BoolPtr(false)
@@ -272,7 +272,7 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 }
 
 func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *v1beta1.Pipeline) ([]v1beta1.Task, error) {
-	taskMap, err := ctx.getTasks(pipelineFilePath)
+	taskMap, err := getTasks(pipelineFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed get tasks: %v", err)
 	}
@@ -298,24 +298,26 @@ func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, er
 		pipelineFile = defaults.DefaultPipelineFileName
 		log.Debugf("Tekton pipeline file name is not specified, using the default file name %s", defaults.DefaultPipelineFileName)
 	}
-	pipelineFile = strings.TrimPrefix(pipelineFile, "/") //Tekton pipeline folder currently is relative to the Radix config file repository folder
+	pipelineFile = strings.TrimPrefix(pipelineFile, "/") // Tekton pipeline folder currently is relative to the Radix config file repository folder
 	configFolder := filepath.Dir(ctx.env.GetRadixConfigFileName())
 	return filepath.Join(configFolder, pipelineFile), nil
 }
 
-func (ctx *pipelineContext) createPipeline(namespace string, envName string, pipeline *v1beta1.Pipeline, taskMap map[string]v1beta1.Task, timestamp string) (*v1beta1.Pipeline, error) {
+func (ctx *pipelineContext) createPipeline(envName string, pipeline *v1beta1.Pipeline, tasks []v1beta1.Task, timestamp string) error {
+	taskMap := ctx.buildTasks(envName, tasks, timestamp)
+
 	originalPipelineName := pipeline.Name
-	var setTaskRefErrors []error
+	var errs []error
 	for i, pipelineSpecTask := range pipeline.Spec.Tasks {
-		createdTask, ok := taskMap[pipelineSpecTask.TaskRef.Name]
+		task, ok := taskMap[pipelineSpecTask.TaskRef.Name]
 		if !ok {
-			setTaskRefErrors = append(setTaskRefErrors, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
+			errs = append(errs, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
 			continue
 		}
-		pipeline.Spec.Tasks[i].TaskRef = &v1beta1.TaskRef{Name: createdTask.Name}
+		pipeline.Spec.Tasks[i].TaskRef = &v1beta1.TaskRef{Name: task.Name}
 	}
-	if len(setTaskRefErrors) > 0 {
-		return nil, commonErrors.Concat(setTaskRefErrors)
+	if len(errs) > 0 {
+		return commonErrors.Concat(errs)
 	}
 	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", getShortName(envName), getShortName(originalPipelineName), timestamp, ctx.hash)
 	pipeline.ObjectMeta.Name = pipelineName
@@ -327,20 +329,29 @@ func (ctx *pipelineContext) createPipeline(namespace string, envName string, pip
 	if ctx.ownerReference != nil {
 		pipeline.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 	}
-	return ctx.tektonClient.TektonV1beta1().Pipelines(namespace).Create(context.Background(), pipeline,
-		metav1.CreateOptions{})
+	err := ctx.createTasks(taskMap)
+	if err != nil {
+		return fmt.Errorf("tasks have not been created. Error: %w", err)
+	}
+	log.Infof("creates %d tasks for the environment %s", len(taskMap), envName)
+
+	_, err = ctx.tektonClient.TektonV1beta1().Pipelines(ctx.env.GetAppNamespace()).Create(context.Background(), pipeline, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("pipeline %s has not been created. Error: %w", pipeline.Name, err)
+	}
+	log.Infof("created the pipeline %s for the environment %s", pipeline.Name, envName)
+	return nil
 }
 
-func (ctx *pipelineContext) createTask(namespace, envName, originalTaskName string, task v1beta1.Task, timestamp string) (*v1beta1.Task, error) {
-	taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
-	task.ObjectMeta.Name = taskName
-	task.ObjectMeta.Annotations = map[string]string{defaults.PipelineTaskNameAnnotation: originalTaskName}
-	task.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, envName)
-	if ctx.ownerReference != nil {
-		task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
+func (ctx *pipelineContext) createTasks(taskMap map[string]v1beta1.Task) error {
+	namespace := ctx.env.GetAppNamespace()
+	var errs []error
+	for _, task := range taskMap {
+		_, err := ctx.tektonClient.TektonV1beta1().Tasks(namespace).Create(context.Background(), &task,
+			metav1.CreateOptions{})
+		errs = append(errs, fmt.Errorf("task %s has not been created. Error: %w", task.Name, err))
 	}
-	return ctx.tektonClient.TektonV1beta1().Tasks(namespace).Create(context.Background(), &task,
-		metav1.CreateOptions{})
+	return commonErrors.Concat(errs)
 }
 
 func getShortName(name string) string {
@@ -350,7 +361,7 @@ func getShortName(name string) string {
 	return fmt.Sprintf("%s-%s", name, strings.ToLower(commonUtils.RandStringStrSeed(5, name)))
 }
 
-func (ctx *pipelineContext) getPipeline(pipelineFileName string) (*v1beta1.Pipeline, error) {
+func getPipeline(pipelineFileName string) (*v1beta1.Pipeline, error) {
 	pipelineFolder := filepath.Dir(pipelineFileName)
 	if _, err := os.Stat(pipelineFolder); os.IsNotExist(err) {
 		return nil, fmt.Errorf("missing pipeline folder: %s", pipelineFolder)
@@ -372,7 +383,7 @@ func (ctx *pipelineContext) getPipeline(pipelineFileName string) (*v1beta1.Pipel
 	return &pipeline, nil
 }
 
-func (ctx *pipelineContext) getTasks(pipelineFilePath string) (map[string]v1beta1.Task, error) {
+func getTasks(pipelineFilePath string) (map[string]v1beta1.Task, error) {
 	pipelineFolder := filepath.Dir(pipelineFilePath)
 	if _, err := os.Stat(pipelineFolder); os.IsNotExist(err) {
 		return nil, fmt.Errorf("missing pipeline folder: %s", pipelineFolder)

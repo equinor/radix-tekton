@@ -148,6 +148,5 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 			sourceHasChanged := componentHasChangedSource("someEnv", &applicationComponent, testScenario.changedFolders)
 			assert.Equal(t, testScenario.expectedResult, sourceHasChanged)
 		})
-
 	}
 }
