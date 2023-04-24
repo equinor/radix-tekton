@@ -241,17 +241,17 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []v1beta1.Task, tim
 }
 
 func ensureCorrectSecureContext(task *v1beta1.Task) {
-	for _, step := range task.Spec.Steps {
-		if step.SecurityContext == nil {
-			step.SecurityContext = &corev1.SecurityContext{}
+	for i := 0; i < len(task.Spec.Steps); i++ {
+		if task.Spec.Steps[i].SecurityContext == nil {
+			task.Spec.Steps[i].SecurityContext = &corev1.SecurityContext{}
 		}
-		setNotElevatedPrivileges(step.SecurityContext)
+		setNotElevatedPrivileges(task.Spec.Steps[i].SecurityContext)
 	}
-	for _, sidecar := range task.Spec.Sidecars {
-		if sidecar.SecurityContext == nil {
-			sidecar.SecurityContext = &corev1.SecurityContext{}
+	for i := 0; i < len(task.Spec.Sidecars); i++ {
+		if task.Spec.Sidecars[i].SecurityContext == nil {
+			task.Spec.Sidecars[i].SecurityContext = &corev1.SecurityContext{}
 		}
-		setNotElevatedPrivileges(sidecar.SecurityContext)
+		setNotElevatedPrivileges(task.Spec.Sidecars[i].SecurityContext)
 	}
 	if task.Spec.StepTemplate != nil {
 		if task.Spec.StepTemplate.SecurityContext == nil {
@@ -263,6 +263,10 @@ func ensureCorrectSecureContext(task *v1beta1.Task) {
 
 func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	securityContext.RunAsNonRoot = commonUtils.BoolPtr(true)
+	securityContext.RunAsUser = nil
+	securityContext.RunAsGroup = nil
+	securityContext.WindowsOptions = nil
+	securityContext.SELinuxOptions = nil
 	securityContext.Privileged = commonUtils.BoolPtr(false)
 	securityContext.AllowPrivilegeEscalation = commonUtils.BoolPtr(false)
 	if securityContext.Capabilities == nil {

@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/golang/mock/gomock"
 	corev1 "k8s.io/api/core/v1"
 	"testing"
@@ -237,7 +238,23 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
 				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
 					task.Spec = tekton.TaskSpec{
-						Steps: []tekton.Step{{Name: "step1"}},
+						Steps: []tekton.Step{
+							{
+								Name: "step1",
+								SecurityContext: &corev1.SecurityContext{
+									Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
+									Privileged:               commonUtils.BoolPtr(true),
+									SELinuxOptions:           &corev1.SELinuxOptions{},
+									WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
+									RunAsUser:                pointers.Ptr(int64(1)),
+									RunAsGroup:               pointers.Ptr(int64(1)),
+									RunAsNonRoot:             commonUtils.BoolPtr(false),
+									AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
+									ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
+									SeccompProfile:           &corev1.SeccompProfile{},
+								},
+							},
+						},
 					}
 				})}, timestamp: "2020-01-01T00:00:00Z"},
 			wantErr: func(t *testing.T, err error) {
@@ -254,6 +271,10 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Equal(t, commonUtils.BoolPtr(true), step.SecurityContext.RunAsNonRoot)
 				assert.Equal(t, commonUtils.BoolPtr(false), step.SecurityContext.Privileged)
 				assert.Equal(t, commonUtils.BoolPtr(false), step.SecurityContext.AllowPrivilegeEscalation)
+				assert.Nil(t, step.SecurityContext.RunAsUser)
+				assert.Nil(t, step.SecurityContext.RunAsGroup)
+				assert.Nil(t, step.SecurityContext.WindowsOptions)
+				assert.Nil(t, step.SecurityContext.SELinuxOptions)
 				assert.NotNil(t, step.SecurityContext.Capabilities)
 				assert.Equal(t, []corev1.Capability{"ALL"}, step.SecurityContext.Capabilities.Drop)
 			},
@@ -267,8 +288,25 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
 					task.Spec = tekton.TaskSpec{
 						Steps: []tekton.Step{{Name: "step1"}},
+						Sidecars: []tekton.Sidecar{
+							{
+								SecurityContext: &corev1.SecurityContext{
+									Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
+									Privileged:               commonUtils.BoolPtr(true),
+									SELinuxOptions:           &corev1.SELinuxOptions{},
+									WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
+									RunAsUser:                pointers.Ptr(int64(1)),
+									RunAsGroup:               pointers.Ptr(int64(1)),
+									RunAsNonRoot:             commonUtils.BoolPtr(false),
+									AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
+									ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
+									SeccompProfile:           &corev1.SeccompProfile{},
+								},
+							},
+						},
 					}
-				})}, timestamp: "2020-01-01T00:00:00Z"},
+				},
+				)}, timestamp: "2020-01-01T00:00:00Z"},
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
@@ -283,6 +321,10 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Equal(t, commonUtils.BoolPtr(true), sidecar.SecurityContext.RunAsNonRoot)
 				assert.Equal(t, commonUtils.BoolPtr(false), sidecar.SecurityContext.Privileged)
 				assert.Equal(t, commonUtils.BoolPtr(false), sidecar.SecurityContext.AllowPrivilegeEscalation)
+				assert.Nil(t, sidecar.SecurityContext.RunAsUser)
+				assert.Nil(t, sidecar.SecurityContext.RunAsGroup)
+				assert.Nil(t, sidecar.SecurityContext.WindowsOptions)
+				assert.Nil(t, sidecar.SecurityContext.SELinuxOptions)
 				assert.NotNil(t, sidecar.SecurityContext.Capabilities)
 				assert.Equal(t, []corev1.Capability{"ALL"}, sidecar.SecurityContext.Capabilities.Drop)
 			},
@@ -296,6 +338,20 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
 					task.Spec = tekton.TaskSpec{
 						Steps: []tekton.Step{{Name: "step1"}},
+						StepTemplate: &tekton.StepTemplate{
+							SecurityContext: &corev1.SecurityContext{
+								Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
+								Privileged:               commonUtils.BoolPtr(true),
+								SELinuxOptions:           &corev1.SELinuxOptions{},
+								WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
+								RunAsUser:                pointers.Ptr(int64(1)),
+								RunAsGroup:               pointers.Ptr(int64(1)),
+								RunAsNonRoot:             commonUtils.BoolPtr(false),
+								AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
+								ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
+								SeccompProfile:           &corev1.SeccompProfile{},
+							},
+						},
 					}
 				})}, timestamp: "2020-01-01T00:00:00Z"},
 			wantErr: func(t *testing.T, err error) {
@@ -312,6 +368,10 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Equal(t, commonUtils.BoolPtr(true), stepTemplate.SecurityContext.RunAsNonRoot)
 				assert.Equal(t, commonUtils.BoolPtr(false), stepTemplate.SecurityContext.Privileged)
 				assert.Equal(t, commonUtils.BoolPtr(false), stepTemplate.SecurityContext.AllowPrivilegeEscalation)
+				assert.Nil(t, stepTemplate.SecurityContext.RunAsUser)
+				assert.Nil(t, stepTemplate.SecurityContext.RunAsGroup)
+				assert.Nil(t, stepTemplate.SecurityContext.WindowsOptions)
+				assert.Nil(t, stepTemplate.SecurityContext.SELinuxOptions)
 				assert.NotNil(t, stepTemplate.SecurityContext.Capabilities)
 				assert.Equal(t, []corev1.Capability{"ALL"}, stepTemplate.SecurityContext.Capabilities.Drop)
 			},
