@@ -263,8 +263,12 @@ func ensureCorrectSecureContext(task *v1beta1.Task) {
 
 func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	securityContext.RunAsNonRoot = commonUtils.BoolPtr(true)
-	securityContext.RunAsUser = nil
-	securityContext.RunAsGroup = nil
+	if securityContext.RunAsUser != nil && *securityContext.RunAsUser == 0 {
+		securityContext.RunAsUser = nil
+	}
+	if securityContext.RunAsGroup != nil && *securityContext.RunAsGroup == 0 {
+		securityContext.RunAsGroup = nil
+	}
 	securityContext.WindowsOptions = nil
 	securityContext.SELinuxOptions = nil
 	securityContext.Privileged = commonUtils.BoolPtr(false)

@@ -2,19 +2,19 @@ package pipeline
 
 import (
 	"context"
-	commonUtils "github.com/equinor/radix-common/utils"
-	"github.com/equinor/radix-common/utils/pointers"
-	"github.com/golang/mock/gomock"
-	corev1 "k8s.io/api/core/v1"
 	"testing"
 
+	commonUtils "github.com/equinor/radix-common/utils"
+	"github.com/equinor/radix-common/utils/pointers"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	tekton "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	tektonclientfake "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 )
@@ -246,8 +246,8 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 									Privileged:               commonUtils.BoolPtr(true),
 									SELinuxOptions:           &corev1.SELinuxOptions{},
 									WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
-									RunAsUser:                pointers.Ptr(int64(1)),
-									RunAsGroup:               pointers.Ptr(int64(1)),
+									RunAsUser:                pointers.Ptr(int64(0)),
+									RunAsGroup:               pointers.Ptr(int64(0)),
 									RunAsNonRoot:             commonUtils.BoolPtr(false),
 									AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
 									ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
@@ -295,8 +295,8 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 									Privileged:               commonUtils.BoolPtr(true),
 									SELinuxOptions:           &corev1.SELinuxOptions{},
 									WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
-									RunAsUser:                pointers.Ptr(int64(1)),
-									RunAsGroup:               pointers.Ptr(int64(1)),
+									RunAsUser:                pointers.Ptr(int64(0)),
+									RunAsGroup:               pointers.Ptr(int64(0)),
 									RunAsNonRoot:             commonUtils.BoolPtr(false),
 									AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
 									ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
@@ -344,8 +344,8 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 								Privileged:               commonUtils.BoolPtr(true),
 								SELinuxOptions:           &corev1.SELinuxOptions{},
 								WindowsOptions:           &corev1.WindowsSecurityContextOptions{},
-								RunAsUser:                pointers.Ptr(int64(1)),
-								RunAsGroup:               pointers.Ptr(int64(1)),
+								RunAsUser:                pointers.Ptr(int64(0)),
+								RunAsGroup:               pointers.Ptr(int64(0)),
 								RunAsNonRoot:             commonUtils.BoolPtr(false),
 								AllowPrivilegeEscalation: commonUtils.BoolPtr(true),
 								ProcMount:                pointers.Ptr(corev1.ProcMountType("Default")),
@@ -374,6 +374,104 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Nil(t, stepTemplate.SecurityContext.SELinuxOptions)
 				assert.NotNil(t, stepTemplate.SecurityContext.Capabilities)
 				assert.Equal(t, []corev1.Capability{"ALL"}, stepTemplate.SecurityContext.Capabilities.Drop)
+			},
+		},
+		{
+			name: "allow in the SecurityContext in task step non-root RunAsUser and RunAsGroup",
+			fields: fields{
+				targetEnvironments: map[string]bool{envDev: true},
+			},
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
+					task.Spec = tekton.TaskSpec{
+						Steps: []tekton.Step{
+							{
+								Name: "step1",
+								SecurityContext: &corev1.SecurityContext{
+									RunAsUser:  pointers.Ptr(int64(10)),
+									RunAsGroup: pointers.Ptr(int64(20)),
+								},
+							},
+						},
+					}
+				})}, timestamp: "2020-01-01T00:00:00Z"},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, ctx *pipelineContext) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				assert.Nil(t, err)
+				step := pipeline.Spec.Tasks[0].TaskSpec.Steps[0]
+				assert.NotNil(t, step.SecurityContext.RunAsUser)
+				assert.Equal(t, 10, *step.SecurityContext.RunAsUser)
+				assert.Nil(t, step.SecurityContext.RunAsGroup)
+				assert.NotNil(t, step.SecurityContext.RunAsGroup)
+				assert.Equal(t, 20, step.SecurityContext.RunAsGroup)
+			},
+		},
+		{
+			name: "allow set SecurityContexts in task sidecar non-root RunAsUser and RunAsGroup",
+			fields: fields{
+				targetEnvironments: map[string]bool{envDev: true},
+			},
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
+					task.Spec = tekton.TaskSpec{
+						Steps: []tekton.Step{{Name: "step1"}},
+						Sidecars: []tekton.Sidecar{
+							{
+								SecurityContext: &corev1.SecurityContext{
+									RunAsUser:  pointers.Ptr(int64(10)),
+									RunAsGroup: pointers.Ptr(int64(20)),
+								},
+							},
+						},
+					}
+				},
+				)}, timestamp: "2020-01-01T00:00:00Z"},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, ctx *pipelineContext) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				assert.Nil(t, err)
+				sidecar := pipeline.Spec.Tasks[0].TaskSpec.Sidecars[0]
+				assert.NotNil(t, sidecar.SecurityContext.RunAsUser)
+				assert.Equal(t, 10, *sidecar.SecurityContext.RunAsUser)
+				assert.Nil(t, sidecar.SecurityContext.RunAsGroup)
+				assert.NotNil(t, sidecar.SecurityContext.RunAsGroup)
+				assert.Equal(t, 20, sidecar.SecurityContext.RunAsGroup)
+			},
+		},
+		{
+			name: "allow set SecurityContexts in task stepTemplate non-root RunAsUser and RunAsGroup",
+			fields: fields{
+				targetEnvironments: map[string]bool{envDev: true},
+			},
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
+					task.Spec = tekton.TaskSpec{
+						Steps: []tekton.Step{{Name: "step1"}},
+						StepTemplate: &tekton.StepTemplate{
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:  pointers.Ptr(int64(10)),
+								RunAsGroup: pointers.Ptr(int64(20)),
+							},
+						},
+					}
+				})}, timestamp: "2020-01-01T00:00:00Z"},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, ctx *pipelineContext) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				assert.Nil(t, err)
+				stepTemplate := pipeline.Spec.Tasks[0].TaskSpec.StepTemplate
+				assert.NotNil(t, stepTemplate.SecurityContext.RunAsUser)
+				assert.Equal(t, 10, *stepTemplate.SecurityContext.RunAsUser)
+				assert.Nil(t, stepTemplate.SecurityContext.RunAsGroup)
+				assert.NotNil(t, stepTemplate.SecurityContext.RunAsGroup)
+				assert.Equal(t, 20, stepTemplate.SecurityContext.RunAsGroup)
 			},
 		},
 	}
