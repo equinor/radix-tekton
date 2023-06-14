@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/equinor/radix-common v1.2.10
-	github.com/equinor/radix-operator v1.99.1000-0.20230512151028-4fe236e7a978
+	github.com/equinor/radix-operator v1.38.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/goccy/go-yaml v1.9.5
 	github.com/golang/mock v1.6.0
