@@ -3,7 +3,7 @@ module github.com/equinor/radix-tekton
 go 1.19
 
 require (
-	github.com/equinor/radix-common v1.2.10
+	github.com/equinor/radix-common v1.3.0
 	github.com/equinor/radix-operator v1.38.5
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/goccy/go-yaml v1.9.5
@@ -11,11 +11,11 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.15.0
 	github.com/stretchr/testify v1.8.2
-	github.com/tektoncd/pipeline v0.41.0
-	k8s.io/api v0.25.8
-	k8s.io/apimachinery v0.25.8
-	k8s.io/client-go v0.25.8
-	knative.dev/pkg v0.0.0-20230403151233-b7f277446167
+	github.com/tektoncd/pipeline v0.41.3
+	k8s.io/api v0.25.9
+	k8s.io/apimachinery v0.26.4
+	k8s.io/client-go v0.25.9
+	knative.dev/pkg v0.0.0-20230221152827-2d84369c105d
 )
 
 require (
