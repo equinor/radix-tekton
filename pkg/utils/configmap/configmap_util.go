@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -18,7 +17,7 @@ import (
 
 // CreateFromRadixConfigFile Creates a configmap by name from file and returns as content
 func CreateFromRadixConfigFile(env env.Env) (string, error) {
-	content, err := readConfigFile(env.GetRadixConfigFileName())
+	content, err := os.ReadFile(env.GetRadixConfigFileName())
 	if err != nil {
 		return "", fmt.Errorf("could not find or read config yaml file \"%s\"", env.GetRadixConfigFileName())
 	}
@@ -70,27 +69,4 @@ func GetRadixConfigFromConfigMap(kubeClient kubernetes.Interface, namespace, con
 
 func getNoRadixConfigInConfigMap(configMapName string) error {
 	return fmt.Errorf("no RadixConfig in the ConfigMap %s", configMapName)
-}
-
-func readConfigFile(filename string) ([]byte, error) {
-	var content []byte
-	var err error
-	for _, filename := range filenameCandidates(filename) {
-		content, err = os.ReadFile(filename)
-		if err == nil {
-			break
-		}
-	}
-	return content, err
-}
-
-func filenameCandidates(filename string) []string {
-	filename = strings.TrimSuffix(filename, ".yaml")
-	filename = strings.TrimSuffix(filename, ".yml")
-
-	return []string{
-		filename + ".yaml",
-		filename + ".yml",
-		filename,
-	}
 }
