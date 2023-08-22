@@ -23,7 +23,7 @@ import (
 	"github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
 	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
-	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
+	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -222,8 +222,8 @@ func (ctx *pipelineContext) pipelineFileExists(pipelineFilePath string) error {
 	return err
 }
 
-func (ctx *pipelineContext) buildTasks(envName string, tasks []v1beta1.Task, timestamp string) map[string]v1beta1.Task {
-	taskMap := make(map[string]v1beta1.Task)
+func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, timestamp string) map[string]pipelinev1.Task {
+	taskMap := make(map[string]pipelinev1.Task)
 	for _, task := range tasks {
 		originalTaskName := task.Name
 		taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
@@ -240,7 +240,7 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []v1beta1.Task, tim
 	return taskMap
 }
 
-func ensureCorrectSecureContext(task *v1beta1.Task) {
+func ensureCorrectSecureContext(task *pipelinev1.Task) {
 	for i := 0; i < len(task.Spec.Steps); i++ {
 		if task.Spec.Steps[i].SecurityContext == nil {
 			task.Spec.Steps[i].SecurityContext = &corev1.SecurityContext{}
@@ -279,7 +279,7 @@ func setNotElevatedPrivileges(securityContext *corev1.SecurityContext) {
 	securityContext.Capabilities.Drop = []corev1.Capability{"ALL"}
 }
 
-func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *v1beta1.Pipeline) ([]v1beta1.Task, error) {
+func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *pipelinev1.Pipeline) ([]pipelinev1.Task, error) {
 	taskMap, err := getTasks(pipelineFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed get tasks: %v", err)
@@ -287,7 +287,7 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 	if len(taskMap) == 0 {
 		return nil, fmt.Errorf("no tasks found: %v", err)
 	}
-	var tasks []v1beta1.Task
+	var tasks []pipelinev1.Task
 	var validateTaskErrors []error
 	for _, pipelineSpecTask := range pipeline.Spec.Tasks {
 		task, taskExists := taskMap[pipelineSpecTask.TaskRef.Name]
@@ -311,7 +311,7 @@ func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, er
 	return filepath.Join(configFolder, pipelineFile), nil
 }
 
-func (ctx *pipelineContext) createPipeline(envName string, pipeline *v1beta1.Pipeline, tasks []v1beta1.Task, timestamp string) error {
+func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.Pipeline, tasks []pipelinev1.Task, timestamp string) error {
 	taskMap := ctx.buildTasks(envName, tasks, timestamp)
 
 	originalPipelineName := pipeline.Name
@@ -322,7 +322,7 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *v1beta1.Pip
 			errs = append(errs, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
 			continue
 		}
-		pipeline.Spec.Tasks[i].TaskRef = &v1beta1.TaskRef{Name: task.Name}
+		pipeline.Spec.Tasks[i].TaskRef = &pipelinev1.TaskRef{Name: task.Name}
 	}
 	if len(errs) > 0 {
 		return commonErrors.Concat(errs)
@@ -343,7 +343,7 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *v1beta1.Pip
 	}
 	log.Infof("creates %d tasks for the environment %s", len(taskMap), envName)
 
-	_, err = ctx.tektonClient.TektonV1beta1().Pipelines(ctx.env.GetAppNamespace()).Create(context.Background(), pipeline, metav1.CreateOptions{})
+	_, err = ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Create(context.Background(), pipeline, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("pipeline %s has not been created. Error: %w", pipeline.Name, err)
 	}
@@ -351,11 +351,11 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *v1beta1.Pip
 	return nil
 }
 
-func (ctx *pipelineContext) createTasks(taskMap map[string]v1beta1.Task) error {
+func (ctx *pipelineContext) createTasks(taskMap map[string]pipelinev1.Task) error {
 	namespace := ctx.env.GetAppNamespace()
 	var errs []error
 	for _, task := range taskMap {
-		_, err := ctx.tektonClient.TektonV1beta1().Tasks(namespace).Create(context.Background(), &task,
+		_, err := ctx.tektonClient.TektonV1().Tasks(namespace).Create(context.Background(), &task,
 			metav1.CreateOptions{})
 		if err != nil {
 			errs = append(errs, fmt.Errorf("task %s has not been created. Error: %w", task.Name, err))
@@ -371,7 +371,7 @@ func getShortName(name string) string {
 	return fmt.Sprintf("%s-%s", name, strings.ToLower(commonUtils.RandStringStrSeed(5, name)))
 }
 
-func getPipeline(pipelineFileName string) (*v1beta1.Pipeline, error) {
+func getPipeline(pipelineFileName string) (*pipelinev1.Pipeline, error) {
 	pipelineFolder := filepath.Dir(pipelineFileName)
 	if _, err := os.Stat(pipelineFolder); os.IsNotExist(err) {
 		return nil, fmt.Errorf("missing pipeline folder: %s", pipelineFolder)
@@ -380,7 +380,7 @@ func getPipeline(pipelineFileName string) (*v1beta1.Pipeline, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the pipeline file %s: %v", pipelineFileName, err)
 	}
-	var pipeline v1beta1.Pipeline
+	var pipeline pipelinev1.Pipeline
 	err = yaml.Unmarshal(pipelineData, &pipeline)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load the pipeline from the file %s: %v", pipelineFileName, err)
@@ -393,7 +393,7 @@ func getPipeline(pipelineFileName string) (*v1beta1.Pipeline, error) {
 	return &pipeline, nil
 }
 
-func getTasks(pipelineFilePath string) (map[string]v1beta1.Task, error) {
+func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 	pipelineFolder := filepath.Dir(pipelineFilePath)
 	if _, err := os.Stat(pipelineFolder); os.IsNotExist(err) {
 		return nil, fmt.Errorf("missing pipeline folder: %s", pipelineFolder)
@@ -404,7 +404,7 @@ func getTasks(pipelineFilePath string) (map[string]v1beta1.Task, error) {
 		return nil, fmt.Errorf("failed to scan pipeline folder %s: %v", pipelineFolder, err)
 	}
 	fileMap := make(map[interface{}]interface{})
-	taskMap := make(map[string]v1beta1.Task)
+	taskMap := make(map[string]pipelinev1.Task)
 	for _, fileName := range fileNameList {
 		if strings.EqualFold(fileName, pipelineFilePath) {
 			continue
@@ -422,7 +422,7 @@ func getTasks(pipelineFilePath string) (map[string]v1beta1.Task, error) {
 			log.Debugf("skip the file %s - not a Tekton task", fileName)
 			continue
 		}
-		var task v1beta1.Task
+		var task pipelinev1.Task
 		err = yaml.Unmarshal(fileData, &task)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load the task from the file %s: %v", fileData, err)

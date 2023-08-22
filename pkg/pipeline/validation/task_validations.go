@@ -5,25 +5,25 @@ import (
 	"strings"
 
 	"github.com/equinor/radix-tekton/pkg/defaults"
-	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
+	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
-//ValidateTask Validate task
-func ValidateTask(task *v1beta1.Task) []error {
+// ValidateTask Validate task
+func ValidateTask(task *pipelinev1.Task) []error {
 	errs := validateTaskSecretRefDoesNotExist(task)
 	errs = append(errs, validateTaskSteps(task)...)
 	return errs
 }
 
-func validateTaskSteps(task *v1beta1.Task) []error {
+func validateTaskSteps(task *pipelinev1.Task) []error {
 	if len(task.Spec.Steps) == 0 {
 		return []error{fmt.Errorf("invalid task %s: step list is empty", task.GetName())}
 	}
 	return nil
 }
 
-func validateTaskSecretRefDoesNotExist(task *v1beta1.Task) []error {
+func validateTaskSecretRefDoesNotExist(task *pipelinev1.Task) []error {
 	if volumeHasHostPath(task) {
 		return errorTaskContainsHostPath(task)
 	}
@@ -55,7 +55,7 @@ func validateTaskSecretRefDoesNotExist(task *v1beta1.Task) []error {
 	return nil
 }
 
-func volumeHasHostPath(task *v1beta1.Task) bool {
+func volumeHasHostPath(task *pipelinev1.Task) bool {
 	for _, volume := range task.Spec.Volumes {
 		if volume.HostPath != nil {
 			return true
@@ -64,11 +64,11 @@ func volumeHasHostPath(task *v1beta1.Task) bool {
 	return false
 }
 
-func errorTaskContainsSecretRef(task *v1beta1.Task) []error {
+func errorTaskContainsSecretRef(task *pipelinev1.Task) []error {
 	return []error{fmt.Errorf("invalid task %s: references to secrets are not allowed", task.GetName())}
 }
 
-func errorTaskContainsHostPath(task *v1beta1.Task) []error {
+func errorTaskContainsHostPath(task *pipelinev1.Task) []error {
 	return []error{fmt.Errorf("invalid task %s: HostPath is not allowed", task.GetName())}
 }
 

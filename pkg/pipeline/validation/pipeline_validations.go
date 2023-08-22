@@ -3,11 +3,11 @@ package validation
 import (
 	"fmt"
 	commonErrors "github.com/equinor/radix-common/utils/errors"
-	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
+	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 )
 
-//ValidatePipeline Validate Pipeline
-func ValidatePipeline(pipeline *v1beta1.Pipeline) error {
+// ValidatePipeline Validate Pipeline
+func ValidatePipeline(pipeline *pipelinev1.Pipeline) error {
 	var validationErrors []error
 
 	validationErrors = append(validationErrors, validatePipelineTasks(pipeline)...)
@@ -15,7 +15,7 @@ func ValidatePipeline(pipeline *v1beta1.Pipeline) error {
 	return commonErrors.Concat(validationErrors)
 }
 
-func validatePipelineTasks(pipeline *v1beta1.Pipeline) []error {
+func validatePipelineTasks(pipeline *pipelinev1.Pipeline) []error {
 	var validationErrors []error
 	if len(pipeline.Spec.Tasks) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("missing tasks in the pipeline %s", pipeline.Name))

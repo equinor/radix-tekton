@@ -12,7 +12,7 @@ import (
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	tekton "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
+	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclientfake "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,133 +20,135 @@ import (
 )
 
 func Test_ComponentHasChangedSource(t *testing.T) {
-	var testScenarios = []struct {
-		description    string
-		changedFolders []string
-		sourceFolder   string
-		expectedResult bool
-	}{
-		{
-			description:    "sourceFolder is dot",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   ".",
-			expectedResult: true,
-		},
-		{
-			description:    "several dots and slashes",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "././",
-			expectedResult: true,
-		},
-		{
-			description:    "no changes in the sourceFolder folder with trailing slash",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "nonexistingdir/",
-			expectedResult: false,
-		},
-		{
-			description:    "no changes in the sourceFolder folder without slashes",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "nonexistingdir",
-			expectedResult: false,
-		},
-		{
-			description:    "real source dir with trailing slash",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "src/",
-			expectedResult: true,
-		},
-		{
-			description:    "sourceFolder has surrounding slashes and leading dot",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "./src/",
-			expectedResult: true,
-		},
-		{
-			description:    "real source dir without trailing slash",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "./src",
-			expectedResult: true,
-		},
-		{
-			description:    "changes in the sourceFolder folder subfolder",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "src",
-			expectedResult: true,
-		},
-		{
-			description:    "changes in the sourceFolder multiple element path subfolder",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "src/subdir",
-			expectedResult: true,
-		},
-		{
-			description:    "changes in the sourceFolder multiple element path subfolder with trailing slash",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "src/subdir/",
-			expectedResult: true,
-		},
-		{
-			description:    "no changes in the sourceFolder multiple element path subfolder",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "src/subdir/water",
-			expectedResult: false,
-		},
-		{
-			description:    "changes in the sourceFolder multiple element path subfolder with trailing slash",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "src/subdir/water/",
-			expectedResult: false,
-		},
-		{
-			description:    "sourceFolder has name of changed folder",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "notebooks",
-			expectedResult: true,
-		},
-		{
-			description:    "empty sourceFolder is affected by any changes",
-			changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
-			sourceFolder:   "",
-			expectedResult: true,
-		},
-		{
-			description:    "empty sourceFolder is affected by any changes",
-			changedFolders: []string{"src/some/subdir"},
-			sourceFolder:   "",
-			expectedResult: true,
-		},
-		{
-			description:    "sourceFolder sub-folder in the root",
-			changedFolders: []string{".", "app1"},
-			sourceFolder:   "./app1",
-			expectedResult: true,
-		},
-		{
-			description:    "sourceFolder sub-folder in the root, no changed folders",
-			changedFolders: []string{},
-			sourceFolder:   ".",
-			expectedResult: false,
-		},
-		{
-			description:    "sourceFolder sub-folder in empty, no changed folders",
-			changedFolders: []string{},
-			sourceFolder:   "",
-			expectedResult: false,
-		},
-		{
-			description:    "sourceFolder sub-folder in slash, no changed folders",
-			changedFolders: []string{},
-			sourceFolder:   "/",
-			expectedResult: false,
-		},
-		{
-			description:    "sourceFolder sub-folder in slash with dot, no changed folders",
-			changedFolders: []string{},
-			sourceFolder:   "/.",
-			expectedResult: false,
-		},
-	}
+	var (
+		testScenarios = []struct {
+			description    string
+			changedFolders []string
+			sourceFolder   string
+			expectedResult bool
+		}{
+			{
+				description:    "sourceFolder is dot",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   ".",
+				expectedResult: true,
+			},
+			{
+				description:    "several dots and slashes",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "././",
+				expectedResult: true,
+			},
+			{
+				description:    "no changes in the sourceFolder folder with trailing slash",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "nonexistingdir/",
+				expectedResult: false,
+			},
+			{
+				description:    "no changes in the sourceFolder folder without slashes",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "nonexistingdir",
+				expectedResult: false,
+			},
+			{
+				description:    "real source dir with trailing slash",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "src/",
+				expectedResult: true,
+			},
+			{
+				description:    "sourceFolder has surrounding slashes and leading dot",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "./src/",
+				expectedResult: true,
+			},
+			{
+				description:    "real source dir without trailing slash",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "./src",
+				expectedResult: true,
+			},
+			{
+				description:    "changes in the sourceFolder folder subfolder",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "src",
+				expectedResult: true,
+			},
+			{
+				description:    "changes in the sourceFolder multiple element path subfolder",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "src/subdir",
+				expectedResult: true,
+			},
+			{
+				description:    "changes in the sourceFolder multiple element path subfolder with trailing slash",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "src/subdir/",
+				expectedResult: true,
+			},
+			{
+				description:    "no changes in the sourceFolder multiple element path subfolder",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "src/subdir/water",
+				expectedResult: false,
+			},
+			{
+				description:    "changes in the sourceFolder multiple element path subfolder with trailing slash",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "src/subdir/water/",
+				expectedResult: false,
+			},
+			{
+				description:    "sourceFolder has name of changed folder",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "notebooks",
+				expectedResult: true,
+			},
+			{
+				description:    "empty sourceFolder is affected by any changes",
+				changedFolders: []string{"src/some/subdir", "src/subdir/business_logic", "notebooks", "tests"},
+				sourceFolder:   "",
+				expectedResult: true,
+			},
+			{
+				description:    "empty sourceFolder is affected by any changes",
+				changedFolders: []string{"src/some/subdir"},
+				sourceFolder:   "",
+				expectedResult: true,
+			},
+			{
+				description:    "sourceFolder sub-folder in the root",
+				changedFolders: []string{".", "app1"},
+				sourceFolder:   "./app1",
+				expectedResult: true,
+			},
+			{
+				description:    "sourceFolder sub-folder in the root, no changed folders",
+				changedFolders: []string{},
+				sourceFolder:   ".",
+				expectedResult: false,
+			},
+			{
+				description:    "sourceFolder sub-folder in empty, no changed folders",
+				changedFolders: []string{},
+				sourceFolder:   "",
+				expectedResult: false,
+			},
+			{
+				description:    "sourceFolder sub-folder in slash, no changed folders",
+				changedFolders: []string{},
+				sourceFolder:   "/",
+				expectedResult: false,
+			},
+			{
+				description:    "sourceFolder sub-folder in slash with dot, no changed folders",
+				changedFolders: []string{},
+				sourceFolder:   "/.",
+				expectedResult: false,
+			},
+		}
+	)
 
 	var applicationComponent v1.RadixComponent
 
@@ -174,8 +176,8 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 	}
 	type args struct {
 		envName   string
-		pipeline  *tekton.Pipeline
-		tasks     []tekton.Task
+		pipeline  *pipelinev1.Pipeline
+		tasks     []pipelinev1.Task
 		timestamp string
 	}
 	const (
@@ -201,13 +203,13 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				hash:               hash,
 				ownerReference:     &metav1.OwnerReference{Kind: "RadixApplication", Name: appName},
 			},
-			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
-				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []pipelinev1.Task{*getTestTask(func(task *pipelinev1.Task) {
 					task.ObjectMeta.Name = "task1"
-					task.Spec = tekton.TaskSpec{
-						Steps:        []tekton.Step{{Name: "step1"}},
-						Sidecars:     []tekton.Sidecar{{Name: "sidecar1"}},
-						StepTemplate: &tekton.StepTemplate{Image: "image1"},
+					task.Spec = pipelinev1.TaskSpec{
+						Steps:        []pipelinev1.Step{{Name: "step1"}},
+						Sidecars:     []pipelinev1.Sidecar{{Name: "sidecar1"}},
+						StepTemplate: &pipelinev1.StepTemplate{Image: "image1"},
 					}
 				})}, timestamp: "2020-01-01T00:00:00Z"},
 			wantErr: func(t *testing.T, err error) {
@@ -235,10 +237,10 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			fields: fields{
 				targetEnvironments: map[string]bool{envDev: true},
 			},
-			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
-				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
-					task.Spec = tekton.TaskSpec{
-						Steps: []tekton.Step{
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []pipelinev1.Task{*getTestTask(func(task *pipelinev1.Task) {
+					task.Spec = pipelinev1.TaskSpec{
+						Steps: []pipelinev1.Step{
 							{
 								Name: "step1",
 								SecurityContext: &corev1.SecurityContext{
@@ -284,11 +286,11 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			fields: fields{
 				targetEnvironments: map[string]bool{envDev: true},
 			},
-			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
-				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
-					task.Spec = tekton.TaskSpec{
-						Steps: []tekton.Step{{Name: "step1"}},
-						Sidecars: []tekton.Sidecar{
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []pipelinev1.Task{*getTestTask(func(task *pipelinev1.Task) {
+					task.Spec = pipelinev1.TaskSpec{
+						Steps: []pipelinev1.Step{{Name: "step1"}},
+						Sidecars: []pipelinev1.Sidecar{
 							{
 								SecurityContext: &corev1.SecurityContext{
 									Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
@@ -334,11 +336,11 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			fields: fields{
 				targetEnvironments: map[string]bool{envDev: true},
 			},
-			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
-				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
-					task.Spec = tekton.TaskSpec{
-						Steps: []tekton.Step{{Name: "step1"}},
-						StepTemplate: &tekton.StepTemplate{
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []pipelinev1.Task{*getTestTask(func(task *pipelinev1.Task) {
+					task.Spec = pipelinev1.TaskSpec{
+						Steps: []pipelinev1.Step{{Name: "step1"}},
+						StepTemplate: &pipelinev1.StepTemplate{
 							SecurityContext: &corev1.SecurityContext{
 								Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"None"}},
 								Privileged:               commonUtils.BoolPtr(true),
@@ -381,10 +383,10 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			fields: fields{
 				targetEnvironments: map[string]bool{envDev: true},
 			},
-			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
-				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
-					task.Spec = tekton.TaskSpec{
-						Steps: []tekton.Step{
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []pipelinev1.Task{*getTestTask(func(task *pipelinev1.Task) {
+					task.Spec = pipelinev1.TaskSpec{
+						Steps: []pipelinev1.Step{
 							{
 								Name: "step1",
 								SecurityContext: &corev1.SecurityContext{
@@ -414,11 +416,11 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			fields: fields{
 				targetEnvironments: map[string]bool{envDev: true},
 			},
-			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
-				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
-					task.Spec = tekton.TaskSpec{
-						Steps: []tekton.Step{{Name: "step1"}},
-						Sidecars: []tekton.Sidecar{
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []pipelinev1.Task{*getTestTask(func(task *pipelinev1.Task) {
+					task.Spec = pipelinev1.TaskSpec{
+						Steps: []pipelinev1.Step{{Name: "step1"}},
+						Sidecars: []pipelinev1.Sidecar{
 							{
 								SecurityContext: &corev1.SecurityContext{
 									RunAsUser:  pointers.Ptr(int64(10)),
@@ -448,11 +450,11 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			fields: fields{
 				targetEnvironments: map[string]bool{envDev: true},
 			},
-			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *tekton.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
-				tasks: []tekton.Task{*getTestTask(func(task *tekton.Task) {
-					task.Spec = tekton.TaskSpec{
-						Steps: []tekton.Step{{Name: "step1"}},
-						StepTemplate: &tekton.StepTemplate{
+			args: args{envName: envDev, pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) { pipeline.ObjectMeta.Name = "pipeline1" }),
+				tasks: []pipelinev1.Task{*getTestTask(func(task *pipelinev1.Task) {
+					task.Spec = pipelinev1.TaskSpec{
+						Steps: []pipelinev1.Step{{Name: "step1"}},
+						StepTemplate: &pipelinev1.StepTemplate{
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser:  pointers.Ptr(int64(10)),
 								RunAsGroup: pointers.Ptr(int64(20)),
@@ -522,11 +524,11 @@ func getEnvMock(mockCtrl *gomock.Controller, modify func(mockEnv *env.MockEnv)) 
 	return mockEnv
 }
 
-func getTestPipeline(modify func(pipeline *tekton.Pipeline)) *tekton.Pipeline {
-	task := &tekton.Pipeline{
+func getTestPipeline(modify func(pipeline *pipelinev1.Pipeline)) *pipelinev1.Pipeline {
+	task := &pipelinev1.Pipeline{
 		ObjectMeta: metav1.ObjectMeta{Name: "pipeline1"},
-		Spec: tekton.PipelineSpec{
-			Tasks: []tekton.PipelineTask{},
+		Spec: pipelinev1.PipelineSpec{
+			Tasks: []pipelinev1.PipelineTask{},
 		},
 	}
 	if modify != nil {
@@ -542,11 +544,11 @@ func getRadixApplication(appName, environment, buildFrom string) *v1.RadixApplic
 		BuildRA()
 }
 
-func getTestTask(modify func(task *tekton.Task)) *tekton.Task {
-	task := &tekton.Task{
+func getTestTask(modify func(task *pipelinev1.Task)) *pipelinev1.Task {
+	task := &pipelinev1.Task{
 		ObjectMeta: metav1.ObjectMeta{Name: "task1"},
-		Spec: tekton.TaskSpec{
-			Steps: []tekton.Step{{Name: "step1"}},
+		Spec: pipelinev1.TaskSpec{
+			Steps: []pipelinev1.Step{{Name: "step1"}},
 		},
 	}
 	if modify != nil {
