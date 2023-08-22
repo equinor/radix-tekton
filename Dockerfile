@@ -2,8 +2,6 @@ FROM golang:1.19-alpine3.18 as builder
 
 RUN apk update && apk upgrade
 
-ENV GO111MODULE=on
-
 WORKDIR /go/src/github.com/equinor/radix-tekton/
 
 # Install project dependencies
