@@ -1,10 +1,12 @@
 module github.com/equinor/radix-tekton
 
-go 1.20
+go 1.21
+
+toolchain go1.21.0
 
 require (
-	github.com/equinor/radix-common v1.4.0
-	github.com/equinor/radix-operator v1.41.9
+	github.com/equinor/radix-common v1.5.0
+	github.com/equinor/radix-operator v1.43.0
 	github.com/go-git/go-git/v5 v5.5.2
 	github.com/goccy/go-yaml v1.9.5
 	github.com/golang/mock v1.6.0
@@ -12,9 +14,9 @@ require (
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
 	github.com/tektoncd/pipeline v0.44.3
-	k8s.io/api v0.26.7
-	k8s.io/apimachinery v0.26.7
-	k8s.io/client-go v0.26.7
+	k8s.io/api v0.27.6
+	k8s.io/apimachinery v0.27.6
+	k8s.io/client-go v0.27.6
 	knative.dev/pkg v0.0.0-20230221152827-2d84369c105d
 )
 
@@ -104,7 +106,7 @@ require (
 	golang.org/x/term v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	golang.org/x/tools v0.6.0 // indirect
+	golang.org/x/tools v0.7.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/api v0.122.0 // indirect
@@ -117,7 +119,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.26.7 // indirect
+	k8s.io/apiextensions-apiserver v0.27.6 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230501164219-8b0f38b5fd1f // indirect
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106 // indirect
