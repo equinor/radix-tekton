@@ -1,9 +1,12 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
+	operatorutils "github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclient "github.com/equinor/radix-operator/pkg/client/clientset/versioned"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
@@ -13,8 +16,10 @@ import (
 
 // GetClients Gets clients to talk to the API
 func GetClients() (kubernetes.Interface, radixclient.Interface, tektonclient.Interface, error) {
+	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
+	ctx := context.Background()
 
 	if err != nil {
 		config, err = rest.InClusterConfig()
@@ -23,19 +28,25 @@ func GetClients() (kubernetes.Interface, radixclient.Interface, tektonclient.Int
 		}
 	}
 
-	kubeClient, err := kubernetes.NewForConfig(config)
+	kubeClient, err := operatorutils.PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*kubernetes.Clientset, error) {
+		return kubernetes.NewForConfig(config)
+	})
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("getClusterConfig k8s kubeClient: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to create Kubernetes resource client: %w", err)
 	}
 
-	radixClient, err := radixclient.NewForConfig(config)
+	radixClient, err := operatorutils.PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*radixclient.Clientset, error) {
+		return radixclient.NewForConfig(config)
+	})
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("getClusterConfig radix kubeClient: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to create Radix resource client: %w", err)
 	}
 
-	tektonClient, err := tektonclient.NewForConfig(config)
+	tektonClient, err := operatorutils.PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*tektonclient.Clientset, error) {
+		return tektonclient.NewForConfig(config)
+	})
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("getClusterConfig radix tektonClient: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to create Tekton resource client: %w", err)
 	}
 
 	return kubeClient, radixClient, tektonClient, err
