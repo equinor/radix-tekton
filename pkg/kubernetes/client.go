@@ -16,6 +16,7 @@ import (
 
 // GetClients Gets clients to talk to the API
 func GetClients() (kubernetes.Interface, radixclient.Interface, tektonclient.Interface, error) {
+	pollTimeout, pollInterval := time.Minute, 15*time.Second
 	kubeConfigPath := os.Getenv("HOME") + "/.kube/config"
 	config, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 	ctx := context.Background()
@@ -27,21 +28,21 @@ func GetClients() (kubernetes.Interface, radixclient.Interface, tektonclient.Int
 		}
 	}
 
-	kubeClient, err := operatorutils.PollUntilRESTClientSuccessfulConnection(ctx, time.Minute, 15*time.Second, func() (*kubernetes.Clientset, error) {
+	kubeClient, err := operatorutils.PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*kubernetes.Clientset, error) {
 		return kubernetes.NewForConfig(config)
 	})
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to create Kubernetes resource client: %w", err)
 	}
 
-	radixClient, err := operatorutils.PollUntilRESTClientSuccessfulConnection(ctx, time.Minute, 15*time.Second, func() (*radixclient.Clientset, error) {
+	radixClient, err := operatorutils.PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*radixclient.Clientset, error) {
 		return radixclient.NewForConfig(config)
 	})
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to create Radix resource client: %w", err)
 	}
 
-	tektonClient, err := operatorutils.PollUntilRESTClientSuccessfulConnection(ctx, time.Minute, 15*time.Second, func() (*tektonclient.Clientset, error) {
+	tektonClient, err := operatorutils.PollUntilRESTClientSuccessfulConnection(ctx, pollTimeout, pollInterval, func() (*tektonclient.Clientset, error) {
 		return tektonclient.NewForConfig(config)
 	})
 	if err != nil {
