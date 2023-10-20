@@ -18,7 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
+// ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
 func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 	configFileContent, err := configmap.CreateFromRadixConfigFile(ctx.env)
 	if err != nil {
@@ -82,19 +82,18 @@ func (ctx *pipelineContext) setTargetEnvironments() error {
 	if ctx.GetEnv().GetRadixPipelineType() == v1.Deploy {
 		return ctx.setTargetEnvironmentsForDeploy()
 	}
+	log.Infof("pipeline type: %s", ctx.env.GetRadixPipelineType())
 	_, targetEnvironments := applicationconfig.IsThereAnythingToDeployForRadixApplication(ctx.env.GetBranch(), ctx.radixApplication)
 	ctx.targetEnvironments = make(map[string]bool)
 	for envName, isEnvTarget := range targetEnvironments {
-		if isEnvTarget { //get only target environments
+		if isEnvTarget { // get only target environments
 			ctx.targetEnvironments[envName] = true
 		}
 	}
-	if len(ctx.targetEnvironments) > 0 {
-		log.Infof("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())
-	} else {
-		log.Infof("No environments are mapped to the branch %s.", ctx.env.GetBranch())
+	if len(ctx.targetEnvironments) == 0 {
+		return fmt.Errorf("no environments are mapped to the branch %s", ctx.env.GetBranch())
 	}
-	log.Infof("pipeline type: %s", ctx.env.GetRadixPipelineType())
+	log.Infof("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())
 	return nil
 }
 
@@ -113,7 +112,7 @@ func (ctx *pipelineContext) setTargetEnvironmentsForPromote() error {
 		log.Infoln("pipeline type: promote")
 		return commonErrors.Concat(errs)
 	}
-	ctx.targetEnvironments = map[string]bool{ctx.env.GetRadixDeployToEnvironment(): true} //run Tekton pipelines for the promote target environment
+	ctx.targetEnvironments = map[string]bool{ctx.env.GetRadixDeployToEnvironment(): true} // run Tekton pipelines for the promote target environment
 	log.Infof("promote the deployment %s from the environment %s to %s", ctx.env.GetRadixPromoteDeployment(), ctx.env.GetRadixPromoteFromEnvironment(), ctx.env.GetRadixDeployToEnvironment())
 	return nil
 }
