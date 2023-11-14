@@ -18,7 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
+// ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
 func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 	configFileContent, err := configmap.CreateFromRadixConfigFile(ctx.env)
 	if err != nil {
@@ -82,12 +82,10 @@ func (ctx *pipelineContext) setTargetEnvironments() error {
 	if ctx.GetEnv().GetRadixPipelineType() == v1.Deploy {
 		return ctx.setTargetEnvironmentsForDeploy()
 	}
-	_, targetEnvironments := applicationconfig.IsThereAnythingToDeployForRadixApplication(ctx.env.GetBranch(), ctx.radixApplication)
+	targetEnvironments := applicationconfig.GetTargetEnvironments(ctx.env.GetBranch(), ctx.radixApplication)
 	ctx.targetEnvironments = make(map[string]bool)
-	for envName, isEnvTarget := range targetEnvironments {
-		if isEnvTarget { //get only target environments
-			ctx.targetEnvironments[envName] = true
-		}
+	for _, envName := range targetEnvironments {
+		ctx.targetEnvironments[envName] = true
 	}
 	if len(ctx.targetEnvironments) > 0 {
 		log.Infof("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())
