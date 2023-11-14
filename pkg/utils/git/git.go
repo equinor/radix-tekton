@@ -11,7 +11,7 @@ import (
 
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
-	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/equinor/radix-tekton/pkg/models/config"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -47,9 +47,9 @@ func ResetGitHead(gitWorkspace, commitHashString string) error {
 }
 
 // GetCommitHashAndTags gets target commit hash and tags from GitHub repository
-func GetCommitHashAndTags(env env.Env) (string, string, error) {
-	gitWorkspace := env.GetGitRepositoryWorkspace()
-	targetCommitHash, err := GetGitCommitHash(gitWorkspace, env)
+func GetCommitHashAndTags(cfg config.Config) (string, string, error) {
+	gitWorkspace := cfg.GetGitRepositoryWorkspace()
+	targetCommitHash, err := GetGitCommitHash(gitWorkspace, cfg)
 	if err != nil {
 		return "", "", err
 	}
@@ -105,7 +105,7 @@ func getGitAffectedResourcesBetweenCommits(gitWorkspace, configBranch, configFil
 		return nil, false, err
 	}
 
-	if strings.EqualFold(beforeCommitHash.String(), targetCommitString) { //targetCommit is the very first commit in the repo
+	if strings.EqualFold(beforeCommitHash.String(), targetCommitString) { // targetCommit is the very first commit in the repo
 		return getChangedFoldersOfCommitFiles(beforeCommit, configBranch, currentBranch, configFile)
 	}
 
@@ -293,7 +293,7 @@ func getGitCommitTags(gitWorkspace string, commitHashString string) (string, err
 
 // GetGitCommitHash returns commit hash from webhook commit ID that triggered job, if present. If not, returns HEAD of
 // build branch
-func GetGitCommitHash(workspace string, e env.Env) (string, error) {
+func GetGitCommitHash(workspace string, e config.Config) (string, error) {
 	webhookCommitId := e.GetWebhookCommitId()
 	if webhookCommitId != "" {
 		log.Debugf("got git commit hash %s from env var %s", webhookCommitId, defaults.RadixGithubWebhookCommitId)

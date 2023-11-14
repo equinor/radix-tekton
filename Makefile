@@ -62,7 +62,7 @@ deploy: build
 
 .PHONY: mocks
 mocks:
-	mockgen -source ./pkg/models/env/env.go -destination ./pkg/models/env/env_mock.go -package env
+	mockgen -source ./pkg/models/config/config.go -destination ./pkg/models/config/config_mock.go -package config
 
 .PHONY: staticcheck
 staticcheck:

@@ -298,8 +298,8 @@ func TestGetLastSuccessfulEnvironmentDeployCommits(t *testing.T) {
 			assert.NoError(t, err)
 			commitEnvs := maps.GetKeysFromMap(commits)
 			assert.ElementsMatch(t, scenario.environments, commitEnvs)
-			for _, env := range commitEnvs {
-				assert.Equal(t, scenario.expectedEnvCommits[env], commits[env].CommitHash)
+			for _, cfg := range commitEnvs {
+				assert.Equal(t, scenario.expectedEnvCommits[cfg], commits[cfg].CommitHash)
 			}
 		})
 	}

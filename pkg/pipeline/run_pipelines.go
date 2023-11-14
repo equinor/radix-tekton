@@ -28,13 +28,13 @@ import (
 
 // RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
 func (ctx *pipelineContext) RunPipelinesJob() error {
-	if ctx.GetEnv().GetRadixPipelineType() == v1.Build {
+	if ctx.GetConfig().GetRadixPipelineType() == v1.Build {
 		log.Infof("pipeline type is build, skip Tekton pipeline run.")
 		return nil
 	}
-	namespace := ctx.env.GetAppNamespace()
+	namespace := ctx.cfg.GetAppNamespace()
 	pipelineList, err := ctx.tektonClient.TektonV1().Pipelines(namespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, ctx.env.GetRadixPipelineJobName()),
+		LabelSelector: fmt.Sprintf("%s=%s", kube.RadixJobNameLabel, ctx.cfg.GetRadixPipelineJobName()),
 	})
 	if err != nil {
 		return err
@@ -54,9 +54,9 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return err
 	}
 
-	tektonPipelineBranch := ctx.env.GetBranch()
-	if ctx.GetEnv().GetRadixPipelineType() == v1.Deploy {
-		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.env.GetRadixDeployToEnvironment())
+	tektonPipelineBranch := ctx.cfg.GetBranch()
+	if ctx.GetConfig().GetRadixPipelineType() == v1.Deploy {
+		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.cfg.GetRadixDeployToEnvironment())
 		tektonPipelineBranch = re.Build.From
 	}
 	log.Infof("Run tekton pipelines for the branch %s", tektonPipelineBranch)
@@ -76,7 +76,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 	err = ctx.WaitForCompletionOf(pipelineRunMap)
 	if err != nil {
 		return fmt.Errorf("failed tekton pipelines for the application %s, for environment(s) %s. %w",
-			ctx.env.GetAppName(),
+			ctx.cfg.GetAppName(),
 			ctx.getTargetEnvsAsString(),
 			err)
 	}
@@ -145,7 +145,7 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targ
 			Name:   pipelineRunName,
 			Labels: labels.GetLabelsForEnvironment(ctx, targetEnv),
 			Annotations: map[string]string{
-				kube.RadixBranchAnnotation:      ctx.env.GetBranch(),
+				kube.RadixBranchAnnotation:      ctx.cfg.GetBranch(),
 				defaults.PipelineNameAnnotation: originalPipelineName,
 			},
 		},
@@ -222,7 +222,7 @@ func (ctx *pipelineContext) WaitForCompletionOf(pipelineRuns map[string]*pipelin
 
 	errChan := make(chan error)
 
-	kubeInformerFactory := tektonInformerFactory.NewSharedInformerFactoryWithOptions(ctx.tektonClient, time.Second*5, tektonInformerFactory.WithNamespace(ctx.GetEnv().GetAppNamespace()))
+	kubeInformerFactory := tektonInformerFactory.NewSharedInformerFactoryWithOptions(ctx.tektonClient, time.Second*5, tektonInformerFactory.WithNamespace(ctx.GetConfig().GetAppNamespace()))
 	genericInformer, err := kubeInformerFactory.ForResource(pipelinev1.SchemeGroupVersion.WithResource("pipelineruns"))
 	if err != nil {
 		return err

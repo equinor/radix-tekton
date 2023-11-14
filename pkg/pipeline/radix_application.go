@@ -7,11 +7,11 @@ import (
 )
 
 func (ctx *pipelineContext) createRadixApplicationFromContent(configFileContent string) (*v1.RadixApplication, error) {
-	return steps.CreateRadixApplication(ctx.radixClient, configFileContent)
+	return steps.CreateRadixApplication(ctx.radixClient, ctx.cfg.GetDNSConfig(), configFileContent)
 }
 
 func (ctx *pipelineContext) createRadixApplicationFromConfigMap() (*v1.RadixApplication, error) {
-	configFileContent, err := configmap.GetRadixConfigFromConfigMap(ctx.GetKubeClient(), ctx.env.GetAppNamespace(), ctx.env.GetRadixConfigMapName())
+	configFileContent, err := configmap.GetRadixConfigFromConfigMap(ctx.GetKubeClient(), ctx.cfg.GetAppNamespace(), ctx.cfg.GetRadixConfigMapName())
 	if err != nil {
 		return nil, err
 	}

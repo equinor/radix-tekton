@@ -2,19 +2,19 @@ package models
 
 import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
-	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/equinor/radix-tekton/pkg/models/config"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 )
 
-//Context of the pipeline
+// Context of the pipeline
 type Context interface {
 	// ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
 	ProcessRadixAppConfig() error
 	// RunPipelinesJob un the job, which creates Tekton PipelineRun-s
 	RunPipelinesJob() error
-	// GetEnv Environment for the pipeline
-	GetEnv() env.Env
+	// GetConfig Config for the pipeline
+	GetConfig() config.Config
 	// GetHash Hash, common for all pipeline Kubernetes object names
 	GetHash() string
 	// GetKubeClient Kubernetes client

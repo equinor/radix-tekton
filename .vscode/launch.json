@@ -21,7 +21,9 @@
         "RADIX_CONFIG_CONFIGMAP=radix-config-2-map-1",
         "JOB_NAME=radix-pipeline-123456-abcde",
         "DEBUG=true",
-        "RADIX_PIPELINE_ACTION=prepare"
+        "RADIX_PIPELINE_ACTION=prepare",
+        "RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
+        "RADIX_RESERVED_DNS_ALIASES=grafana,prometheus"
       ]
     },
     { 
@@ -43,7 +45,9 @@
         "RADIX_CONFIG_CONFIGMAP=radix-config-2-map-1",
         "JOB_NAME=radix-pipeline-123456-abcde",
         "DEBUG=true",
-        "RADIX_PIPELINE_ACTION=prepare"
+        "RADIX_PIPELINE_ACTION=prepare",
+        "RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
+        "RADIX_RESERVED_DNS_ALIASES=grafana,prometheus"
       ]
     },
     {
@@ -60,7 +64,9 @@
         "DEPLOYMENT_NAME=qa-etxkt-ac6rxchq",
         "JOB_NAME=radix-pipeline-123456-abcde",
         "DEBUG=true",
-        "RADIX_PIPELINE_ACTION=run"
+        "RADIX_PIPELINE_ACTION=run",
+        "RADIX_RESERVED_APP_DNS_ALIASES=api=radix-api,canary=radix-canary-golang,console=radix-web-console,cost-api=radix-cost-allocation-api,webhook=radix-github-webhook",
+        "RADIX_RESERVED_DNS_ALIASES=grafana,prometheus"
       ]
     }
   ]

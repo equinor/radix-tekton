@@ -5,8 +5,8 @@ go 1.21
 toolchain go1.21.0
 
 require (
-	github.com/equinor/radix-common v1.5.0
-	github.com/equinor/radix-operator v1.45.2
+	github.com/equinor/radix-common v1.6.1-0.20231114095949-d7354edaf04c
+	github.com/equinor/radix-operator v1.99.1000-0.20231114085743-d369c3651dc0
 	github.com/go-git/go-git/v5 v5.5.2
 	github.com/goccy/go-yaml v1.9.5
 	github.com/golang/mock v1.6.0

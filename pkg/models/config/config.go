@@ -1,6 +1,12 @@
-package env
+package config
 
 import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -10,92 +16,112 @@ import (
 	"github.com/spf13/viper"
 )
 
-type env struct {
+type cfg struct {
+	dnsConfig *dnsalias.DNSConfig
 }
 
-func (e *env) GetSourceDeploymentGitCommitHash() string {
+func (c *cfg) GetSourceDeploymentGitCommitHash() string {
 	return viper.GetString(defaults.RadixPromoteSourceDeploymentCommitHashEnvironmentVariable)
 }
 
-func (e *env) GetSourceDeploymentGitBranch() string {
+func (c *cfg) GetSourceDeploymentGitBranch() string {
 	return viper.GetString(defaults.RadixPromoteSourceDeploymentBranchEnvironmentVariable)
 }
 
-func (e *env) GetGitConfigMapName() string {
+func (c *cfg) GetGitConfigMapName() string {
 	return viper.GetString(defaults.RadixGitConfigMapEnvironmentVariable)
 }
 
-func (e *env) GetWebhookCommitId() string {
+func (c *cfg) GetWebhookCommitId() string {
 	return viper.GetString(defaults.RadixGithubWebhookCommitId)
 }
 
 // GetAppNamespace Radix application app-namespace
-func (e *env) GetAppNamespace() string {
+func (c *cfg) GetAppNamespace() string {
 	return utils.GetAppNamespace(viper.GetString(defaults.RadixAppEnvironmentVariable))
 }
 
 // GetAppName Radix application name
-func (e *env) GetAppName() string {
+func (c *cfg) GetAppName() string {
 	return viper.GetString(defaults.RadixAppEnvironmentVariable)
 }
 
 // GetRadixConfigMapName Name of a ConfigMap, where Radix config file will be saved during RadixPipelineActionPrepare action
-func (e *env) GetRadixConfigMapName() string {
+func (c *cfg) GetRadixConfigMapName() string {
 	return viper.GetString(defaults.RadixConfigConfigMapEnvironmentVariable)
 }
 
 // GetRadixConfigBranch Name of the Radix application config branch
-func (e *env) GetRadixConfigBranch() string {
+func (c *cfg) GetRadixConfigBranch() string {
 	return viper.GetString(defaults.RadixConfigBranchEnvironmentVariable)
 }
 
 // GetRadixConfigFileName Name with path to the cloned Radix config file to be saved to a ConfigMap
-func (e *env) GetRadixConfigFileName() string {
+func (c *cfg) GetRadixConfigFileName() string {
 	return viper.GetString(defaults.RadixConfigFileEnvironmentVariable)
 }
 
 // GetRadixPipelineType Type of the pipeline, value of the radixv1.RadixPipelineType
-func (e *env) GetRadixPipelineType() v1.RadixPipelineType {
+func (c *cfg) GetRadixPipelineType() v1.RadixPipelineType {
 	return v1.RadixPipelineType(viper.GetString(defaults.RadixPipelineTypeEnvironmentVariable))
 }
 
 // GetRadixImageTag Image tag for the built component
-func (e *env) GetRadixImageTag() string {
+func (c *cfg) GetRadixImageTag() string {
 	return viper.GetString(defaults.RadixImageTagEnvironmentVariable)
 }
 
 // GetBranch Branch of the Radix application to process in a pipeline
-func (e *env) GetBranch() string {
+func (c *cfg) GetBranch() string {
 	return viper.GetString(defaults.RadixBranchEnvironmentVariable)
 }
 
 // GetPipelinesAction  Pipeline action, one of values RadixPipelineActionPrepare, RadixPipelineActionRun
-func (e *env) GetPipelinesAction() string {
+func (c *cfg) GetPipelinesAction() string {
 	return viper.GetString(defaults.RadixPipelineActionEnvironmentVariable)
 }
 
 // GetRadixPipelineJobName Radix pipeline job name
-func (e *env) GetRadixPipelineJobName() string {
+func (c *cfg) GetRadixPipelineJobName() string {
 	return viper.GetString(defaults.RadixPipelineJobEnvironmentVariable)
 }
 
 // GetRadixPromoteDeployment Radix pipeline promote deployment name
-func (e *env) GetRadixPromoteDeployment() string {
+func (c *cfg) GetRadixPromoteDeployment() string {
 	return viper.GetString(defaults.RadixPromoteDeploymentEnvironmentVariable)
 }
 
 // GetRadixPromoteFromEnvironment Radix pipeline promote deployment source environment name
-func (e *env) GetRadixPromoteFromEnvironment() string {
+func (c *cfg) GetRadixPromoteFromEnvironment() string {
 	return viper.GetString(defaults.RadixPromoteFromEnvironmentEnvironmentVariable)
 }
 
 // GetRadixDeployToEnvironment Radix pipeline promote or deploy deployment target environment name
-func (e *env) GetRadixDeployToEnvironment() string {
+func (c *cfg) GetRadixDeployToEnvironment() string {
 	return viper.GetString(defaults.RadixPromoteToEnvironmentEnvironmentVariable)
 }
 
+// GetDNSConfig The list of DNS aliases, reserved for Radix platform Radix application and services
+func (c *cfg) GetDNSConfig() *dnsalias.DNSConfig {
+	return c.dnsConfig
+}
+
+func validateReservedDNSAliases(dnsConfig *dnsalias.DNSConfig) {
+	var errs []error
+	if len(dnsConfig.ReservedAppDNSAliases) == 0 {
+		errs = append(errs, fmt.Errorf("missing DNS aliases, reserved for Radix platform Radix application"))
+	}
+	if len(dnsConfig.ReservedDNSAliases) == 0 {
+		errs = append(errs, fmt.Errorf("missing DNS aliases, reserved for Radix platform services"))
+	}
+	err := errors.Join(errs...)
+	if err != nil {
+		panic(err)
+	}
+}
+
 // GetLogLevel Log level: ERROR, INFO (default), DEBUG
-func (e *env) GetLogLevel() log.Level {
+func (c *cfg) GetLogLevel() log.Level {
 	switch viper.GetString(defaults.LogLevel) {
 	case "DEBUG":
 		return log.DebugLevel
@@ -107,7 +133,7 @@ func (e *env) GetLogLevel() log.Level {
 }
 
 // GetGitRepositoryWorkspace Path to the cloned GitHub repository
-func (e *env) GetGitRepositoryWorkspace() string {
+func (c *cfg) GetGitRepositoryWorkspace() string {
 	workspace := viper.GetString(tektonDefaults.RadixGithubWorkspaceEnvironmentVariable)
 	if len(workspace) == 0 {
 		return git.Workspace
@@ -115,8 +141,8 @@ func (e *env) GetGitRepositoryWorkspace() string {
 	return workspace
 }
 
-// Env Environment for the pipeline
-type Env interface {
+// Config for the pipeline
+type Config interface {
 	GetAppName() string
 	GetAppNamespace() string
 	GetRadixPipelineJobName() string
@@ -136,10 +162,16 @@ type Env interface {
 	GetGitRepositoryWorkspace() string
 	GetSourceDeploymentGitCommitHash() string
 	GetSourceDeploymentGitBranch() string
+	GetDNSConfig() *dnsalias.DNSConfig
 }
 
-// NewEnvironment New instance of an Environment for the pipeline
-func NewEnvironment() Env {
+// NewConfig New instance of a Config for the pipeline
+func NewConfig() Config {
 	viper.AutomaticEnv()
-	return &env{}
+	dnsConfig := &dnsalias.DNSConfig{
+		ReservedAppDNSAliases: maps.FromString(viper.GetString(defaults.RadixReservedAppDNSAliasesEnvironmentVariable)),
+		ReservedDNSAliases:    strings.Split(viper.GetString(defaults.RadixReservedDNSAliasesEnvironmentVariable), ","),
+	}
+	validateReservedDNSAliases(dnsConfig)
+	return &cfg{dnsConfig: dnsConfig}
 }

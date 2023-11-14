@@ -6,10 +6,11 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/pointers"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
-	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/equinor/radix-tekton/pkg/models/config"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
@@ -168,7 +169,7 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 func Test_pipelineContext_createPipeline(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	type fields struct {
-		env                env.Env
+		cfg                config.Config
 		radixApplication   *v1.RadixApplication
 		targetEnvironments map[string]bool
 		hash               string
@@ -216,7 +217,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Nil(t, err)
 			},
 			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.cfg.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
 				assert.Nil(t, err)
 				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
 				task := pipeline.Spec.Tasks[0]
@@ -263,7 +264,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Nil(t, err)
 			},
 			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.cfg.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
 				assert.Nil(t, err)
 				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
 				task := pipeline.Spec.Tasks[0]
@@ -313,7 +314,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Nil(t, err)
 			},
 			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.cfg.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
 				assert.Nil(t, err)
 				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
 				task := pipeline.Spec.Tasks[0]
@@ -360,7 +361,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Nil(t, err)
 			},
 			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.cfg.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
 				assert.Nil(t, err)
 				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
 				task := pipeline.Spec.Tasks[0]
@@ -401,7 +402,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Nil(t, err)
 			},
 			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.cfg.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
 				assert.Nil(t, err)
 				step := pipeline.Spec.Tasks[0].TaskSpec.Steps[0]
 				assert.NotNil(t, step.SecurityContext.RunAsUser)
@@ -435,7 +436,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Nil(t, err)
 			},
 			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.cfg.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
 				assert.Nil(t, err)
 				sidecar := pipeline.Spec.Tasks[0].TaskSpec.Sidecars[0]
 				assert.NotNil(t, sidecar.SecurityContext.RunAsUser)
@@ -466,7 +467,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Nil(t, err)
 			},
 			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.cfg.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
 				assert.Nil(t, err)
 				stepTemplate := pipeline.Spec.Tasks[0].TaskSpec.StepTemplate
 				assert.NotNil(t, stepTemplate.SecurityContext.RunAsUser)
@@ -483,7 +484,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				radixClient:        radixclientfake.NewSimpleClientset(),
 				kubeClient:         kubeclientfake.NewSimpleClientset(),
 				tektonClient:       tektonclientfake.NewSimpleClientset(),
-				env:                scenario.fields.env,
+				cfg:                scenario.fields.cfg,
 				radixApplication:   scenario.fields.radixApplication,
 				targetEnvironments: scenario.fields.targetEnvironments,
 				hash:               scenario.fields.hash,
@@ -492,13 +493,14 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			if ctx.radixApplication == nil {
 				ctx.radixApplication = getRadixApplication(appName, envDev, branchMain)
 			}
-			if ctx.env == nil {
-				ctx.env = getEnvMock(mockCtrl, func(mockEnv *env.MockEnv) {
+			if ctx.cfg == nil {
+				ctx.cfg = getEnvMock(mockCtrl, func(mockEnv *config.MockConfig) {
 					mockEnv.EXPECT().GetAppName().Return(appName).AnyTimes()
 					mockEnv.EXPECT().GetRadixImageTag().Return(radixImageTag).AnyTimes()
 					mockEnv.EXPECT().GetRadixPipelineJobName().Return(radixPipelineJobName).AnyTimes()
 					mockEnv.EXPECT().GetBranch().Return(branchMain).AnyTimes()
 					mockEnv.EXPECT().GetAppNamespace().Return(utils.GetAppNamespace(appName)).AnyTimes()
+					mockEnv.EXPECT().GetDNSConfig().Return(getDNSAliasConfig()).AnyTimes()
 				})
 			}
 			if ctx.ownerReference == nil {
@@ -516,8 +518,8 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 	}
 }
 
-func getEnvMock(mockCtrl *gomock.Controller, modify func(mockEnv *env.MockEnv)) *env.MockEnv {
-	mockEnv := env.NewMockEnv(mockCtrl)
+func getEnvMock(mockCtrl *gomock.Controller, modify func(mockEnv *config.MockConfig)) *config.MockConfig {
+	mockEnv := config.NewMockConfig(mockCtrl)
 	if modify != nil {
 		modify(mockEnv)
 	}
@@ -555,4 +557,12 @@ func getTestTask(modify func(task *pipelinev1.Task)) *pipelinev1.Task {
 		modify(task)
 	}
 	return task
+}
+
+func getDNSAliasConfig() *dnsalias.DNSConfig {
+	return &dnsalias.DNSConfig{
+		DNSZone:               "dev.radix.equinor.com",
+		ReservedAppDNSAliases: dnsalias.AppReservedDNSAlias{"api": "radix-api"},
+		ReservedDNSAliases:    []string{"grafana"},
+	}
 }
