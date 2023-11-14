@@ -44,6 +44,11 @@ func validateTaskSecretRefDoesNotExist(task *pipelinev1.Task) []error {
 			if isRadixBuildSecret(volume.Secret.SecretName) {
 				continue
 			}
+
+			if isRadixGitDeployKeySecret(volume.Secret.SecretName) {
+				continue
+			}
+
 			return errorTaskContainsSecretRef(task)
 		}
 	}
@@ -92,4 +97,7 @@ func containerEnvVarHasNonRadixSecretRef(envVars []corev1.EnvVar) bool {
 
 func isRadixBuildSecret(secretName string) bool {
 	return strings.EqualFold(secretName, defaults.SubstitutionRadixBuildSecretsTarget)
+}
+func isRadixGitDeployKeySecret(secretName string) bool {
+	return strings.EqualFold(secretName, defaults.SubstitutionRadixGitDeployKeyTarget)
 }
