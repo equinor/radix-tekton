@@ -13,6 +13,7 @@ import (
 // ValidateTask Validate task
 func ValidateTask(task *pipelinev1.Task) []error {
 	errs := validateTaskSecretRefDoesNotExist(task)
+	errs = append(errs, validateVolumeName(task)...)
 	errs = append(errs, validateTaskSteps(task)...)
 	return errs
 }
@@ -21,6 +22,18 @@ func validateTaskSteps(task *pipelinev1.Task) []error {
 	if len(task.Spec.Steps) == 0 {
 		return []error{fmt.Errorf("invalid task %s: step list is empty", task.GetName())}
 	}
+	return nil
+}
+
+func validateVolumeName(task *pipelinev1.Task) []error {
+	for _, volume := range task.Spec.Volumes {
+
+		if !isValidVolumeName(&volume) {
+			return errorTaskContainsInvalidVolumeName(task, &volume)
+		}
+
+	}
+
 	return nil
 }
 
@@ -42,11 +55,8 @@ func validateTaskSecretRefDoesNotExist(task *pipelinev1.Task) []error {
 	}
 	for _, volume := range task.Spec.Volumes {
 		if volume.Secret != nil {
-			if isRadixBuildSecret(volume.Secret.SecretName) {
-				continue
-			}
-
-			if isRadixGitDeployKeySecret(volume.Secret.SecretName) {
+			if isRadixBuildSecret(volume.Secret.SecretName) ||
+				isRadixGitDeployKeySecret(volume.Secret.SecretName) {
 				continue
 			}
 
@@ -61,6 +71,19 @@ func validateTaskSecretRefDoesNotExist(task *pipelinev1.Task) []error {
 	return nil
 }
 
+func isValidVolumeName(volume *corev1.Volume) bool {
+	if !strings.HasPrefix(volume.Name, "radix") {
+		return true
+	}
+
+	if volume.Secret != nil && (isRadixBuildSecret(volume.Secret.SecretName) ||
+		isRadixGitDeployKeySecret(volume.Secret.SecretName)) {
+		return true
+	}
+
+	return false
+}
+
 func volumeHasHostPath(task *pipelinev1.Task) bool {
 	for _, volume := range task.Spec.Volumes {
 		if volume.HostPath != nil {
@@ -72,6 +95,9 @@ func volumeHasHostPath(task *pipelinev1.Task) bool {
 
 func errorTaskContainsSecretRef(task *pipelinev1.Task) []error {
 	return []error{fmt.Errorf("invalid task %s: references to secrets are not allowed", task.GetName())}
+}
+func errorTaskContainsInvalidVolumeName(task *pipelinev1.Task, volume *corev1.Volume) []error {
+	return []error{fmt.Errorf("invalid volume %s in task %s: volume name starting with radix are not allowed", volume.Name, task.GetName())}
 }
 
 func errorTaskContainsHostPath(task *pipelinev1.Task) []error {
