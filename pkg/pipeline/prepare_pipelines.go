@@ -29,7 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var privateSshFolderMode int32 = 600
+var privateSshFolderMode int32 = 0444
 
 func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, error) {
 	buildContext := model.PrepareBuildContext{}

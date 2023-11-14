@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -99,5 +100,5 @@ func isRadixBuildSecret(secretName string) bool {
 	return strings.EqualFold(secretName, defaults.SubstitutionRadixBuildSecretsTarget)
 }
 func isRadixGitDeployKeySecret(secretName string) bool {
-	return strings.EqualFold(secretName, defaults.SubstitutionRadixGitDeployKeyTarget)
+	return strings.EqualFold(secretName, operatorDefaults.GitPrivateKeySecretName)
 }
