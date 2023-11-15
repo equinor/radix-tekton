@@ -298,7 +298,7 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing the pipeline task %s, referenced to the task %s", pipelineSpecTask.Name, pipelineSpecTask.TaskRef.Name))
 			continue
 		}
-		validateTaskErrors = append(validateTaskErrors, validation.ValidateTask(&task)...)
+		validateTaskErrors = append(validateTaskErrors, validation.ValidateTask(&task))
 		tasks = append(tasks, task)
 	}
 	return tasks, commonErrors.Concat(validateTaskErrors)
