@@ -1,7 +1,7 @@
 package validation
 
 import (
-	errors2 "errors"
+	stderrors "errors"
 	"strings"
 
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -17,7 +17,7 @@ func ValidateTask(task *pipelinev1.Task) error {
 	errs = append(errs, validateTaskSecretRefDoesNotExist(task)...)
 	errs = append(errs, validateVolumeName(task)...)
 	errs = append(errs, validateTaskSteps(task)...)
-	err := errors2.Join(errs...)
+	err := stderrors.Join(errs...)
 
 	if err != nil {
 		return errors.Wrapf(err, "Task %s is invalid", task.GetName())
