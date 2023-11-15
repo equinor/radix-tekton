@@ -20,7 +20,7 @@ func ValidateTask(task *pipelinev1.Task) error {
 	err := stderrors.Join(errs...)
 
 	if err != nil {
-		return errors.Wrapf(err, "Task %s is invalid", task.GetName())
+		return errors.WithMessagef(err, "Task %s is invalid", task.GetName())
 	}
 
 	return nil
