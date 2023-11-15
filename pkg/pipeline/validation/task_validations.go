@@ -24,9 +24,9 @@ func ValidateTask(task *pipelinev1.Task) error {
 	errs = append(errs, validateTaskSecretRefDoesNotExist(task)...)
 	errs = append(errs, validateVolumeName(task)...)
 	errs = append(errs, validateTaskSteps(task)...)
+	err := errors2.Join(errs...)
 
-	if len(errs) > 0 {
-		err := errors2.Join(errs...)
+	if err != nil {
 		return errors.Wrapf(err, "Task %s is invalid", task.GetName())
 	}
 
@@ -61,19 +61,23 @@ func validateVolumeName(task *pipelinev1.Task) []error {
 }
 
 func validateTaskSecretRefDoesNotExist(task *pipelinev1.Task) []error {
+	var errs []error
+
 	if volumeHasHostPath(task) {
-		return errorTaskContainsHostPath(task)
+		errs = errorTaskContainsHostPath(task)
 	}
 	for _, step := range task.Spec.Steps {
 		if containerEnvFromSourceHasNonRadixSecretRef(step.EnvFrom) ||
 			containerEnvVarHasNonRadixSecretRef(step.Env) {
-			return errorTaskContainsSecretRef(task)
+
+			errs = append(errs, errorTaskContainsSecretRef(task)...)
 		}
 	}
 	for _, sidecar := range task.Spec.Sidecars {
 		if containerEnvFromSourceHasNonRadixSecretRef(sidecar.EnvFrom) ||
 			containerEnvVarHasNonRadixSecretRef(sidecar.Env) {
-			return errorTaskContainsSecretRef(task)
+
+			errs = append(errs, errorTaskContainsSecretRef(task)...)
 		}
 	}
 	for _, volume := range task.Spec.Volumes {
@@ -83,15 +87,16 @@ func validateTaskSecretRefDoesNotExist(task *pipelinev1.Task) []error {
 				continue
 			}
 
-			return errorTaskContainsSecretRef(task)
+			errs = append(errs, errorTaskContainsSecretRef(task)...)
 		}
 	}
 	if task.Spec.StepTemplate != nil &&
 		(containerEnvFromSourceHasNonRadixSecretRef(task.Spec.StepTemplate.EnvFrom) ||
 			containerEnvVarHasNonRadixSecretRef(task.Spec.StepTemplate.Env)) {
-		return errorTaskContainsSecretRef(task)
+
+		errs = append(errs, errorTaskContainsSecretRef(task)...)
 	}
-	return nil
+	return errs
 }
 
 func volumeHasHostPath(task *pipelinev1.Task) bool {

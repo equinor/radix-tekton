@@ -102,3 +102,38 @@ func TestNoHostPathAllowed(t *testing.T) {
 
 	assert.ErrorIs(t, err, validation.ErrHostPathNotAllowed)
 }
+
+func TestCollectAllErrors(t *testing.T) {
+	err := validation.ValidateTask(&pipelinev1.Task{
+		ObjectMeta: v1.ObjectMeta{Name: "Test Task"},
+		Spec: pipelinev1.TaskSpec{
+			Volumes: []corev1.Volume{
+				corev1.Volume{
+					Name: "test-host-path",
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/tmp",
+						},
+					},
+				},
+				corev1.Volume{
+					Name: "radix-hello-world",
+				},
+				corev1.Volume{
+					Name: "testing-secret-mount",
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName: "test-illegal-secret",
+						},
+					},
+				},
+			},
+		},
+	})
+
+	assert.ErrorIs(t, err, validation.ErrEmptyStepList)
+	assert.ErrorIs(t, err, validation.ErrHostPathNotAllowed)
+	assert.ErrorIs(t, err, validation.ErrRadixVolumeNameNotAllowed)
+	assert.ErrorIs(t, err, validation.ErrSecretReferenceNotAllowed)
+
+}
