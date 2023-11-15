@@ -10,6 +10,7 @@ require (
 	github.com/go-git/go-git/v5 v5.5.2
 	github.com/goccy/go-yaml v1.9.5
 	github.com/golang/mock v1.6.0
+	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
@@ -76,7 +77,6 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/pjbgf/sha1cd v0.2.3 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.64.1 // indirect
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.64.1 // indirect
