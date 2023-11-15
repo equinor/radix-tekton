@@ -11,13 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var (
-	ErrEmptyStepList             = errors.New("step list is empty")
-	ErrSecretReferenceNotAllowed = errors.New("references to secrets are not allowed")
-	ErrRadixVolumeNameNotAllowed = errors.New("volume name starting with radix are not allowed")
-	ErrHostPathNotAllowed        = errors.New("HostPath is not allowed")
-)
-
 // ValidateTask Validate task
 func ValidateTask(task *pipelinev1.Task) error {
 	var errs []error
