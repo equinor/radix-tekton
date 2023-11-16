@@ -13,6 +13,7 @@ import (
 	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
+	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
@@ -27,6 +28,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+var privateSshFolderMode int32 = 0444
 
 func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, error) {
 	buildContext := model.PrepareBuildContext{}
@@ -295,7 +298,7 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 			validateTaskErrors = append(validateTaskErrors, fmt.Errorf("missing the pipeline task %s, referenced to the task %s", pipelineSpecTask.Name, pipelineSpecTask.TaskRef.Name))
 			continue
 		}
-		validateTaskErrors = append(validateTaskErrors, validation.ValidateTask(&task)...)
+		validateTaskErrors = append(validateTaskErrors, validation.ValidateTask(&task))
 		tasks = append(tasks, task)
 	}
 	return tasks, commonErrors.Concat(validateTaskErrors)
@@ -414,6 +417,8 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 			return nil, fmt.Errorf("failed to read the file %s: %v", fileName, err)
 		}
 		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixBuildSecretsSource, defaults.SubstitutionRadixBuildSecretsTarget))
+		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixGitDeployKeySource, defaults.SubstitutionRadixGitDeployKeyTarget))
+
 		err = yaml.Unmarshal(fileData, &fileMap)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read data from the file %s: %v", fileName, err)
@@ -427,9 +432,23 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load the task from the file %s: %v", fileData, err)
 		}
+
+		addGitDeployKeyVolume(&task)
 		taskMap[task.Name] = task
 	}
 	return taskMap, nil
+}
+
+func addGitDeployKeyVolume(task *pipelinev1.Task) {
+	task.Spec.Volumes = append(task.Spec.Volumes, corev1.Volume{
+		Name: defaults.SubstitutionRadixGitDeployKeyTarget,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName:  operatorDefaults.GitPrivateKeySecretName,
+				DefaultMode: &privateSshFolderMode,
+			},
+		},
+	})
 }
 
 func fileMapContainsTektonTask(fileMap map[interface{}]interface{}) bool {

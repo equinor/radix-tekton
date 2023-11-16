@@ -1,58 +1,95 @@
 package validation
 
 import (
-	"fmt"
+	stderrors "errors"
 	"strings"
 
+	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-tekton/pkg/defaults"
+	"github.com/pkg/errors"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // ValidateTask Validate task
-func ValidateTask(task *pipelinev1.Task) []error {
-	errs := validateTaskSecretRefDoesNotExist(task)
+func ValidateTask(task *pipelinev1.Task) error {
+	var errs []error
+	errs = append(errs, validateTaskSecretRefDoesNotExist(task)...)
+	errs = append(errs, validateVolumeName(task)...)
 	errs = append(errs, validateTaskSteps(task)...)
-	return errs
+	err := stderrors.Join(errs...)
+
+	if err != nil {
+		return errors.WithMessagef(err, "Task %s is invalid", task.GetName())
+	}
+
+	return nil
 }
 
 func validateTaskSteps(task *pipelinev1.Task) []error {
 	if len(task.Spec.Steps) == 0 {
-		return []error{fmt.Errorf("invalid task %s: step list is empty", task.GetName())}
+		return []error{ErrEmptyStepList}
 	}
 	return nil
 }
 
+func validateVolumeName(task *pipelinev1.Task) []error {
+	var errs []error
+
+	for _, volume := range task.Spec.Volumes {
+
+		if !strings.HasPrefix(volume.Name, "radix") {
+			continue
+		}
+
+		if volume.Secret != nil && (isRadixBuildSecret(volume.Secret.SecretName) ||
+			isRadixGitDeployKeySecret(volume.Secret.SecretName)) {
+			continue
+		}
+
+		errs = append(errs, errorTaskContainsInvalidVolumeName(volume))
+	}
+
+	return errs
+}
+
 func validateTaskSecretRefDoesNotExist(task *pipelinev1.Task) []error {
+	var errs []error
+
 	if volumeHasHostPath(task) {
-		return errorTaskContainsHostPath(task)
+		errs = append(errs, ErrHostPathNotAllowed)
 	}
 	for _, step := range task.Spec.Steps {
 		if containerEnvFromSourceHasNonRadixSecretRef(step.EnvFrom) ||
 			containerEnvVarHasNonRadixSecretRef(step.Env) {
-			return errorTaskContainsSecretRef(task)
+
+			errs = append(errs, ErrSecretReferenceNotAllowed)
 		}
 	}
 	for _, sidecar := range task.Spec.Sidecars {
 		if containerEnvFromSourceHasNonRadixSecretRef(sidecar.EnvFrom) ||
 			containerEnvVarHasNonRadixSecretRef(sidecar.Env) {
-			return errorTaskContainsSecretRef(task)
+
+			errs = append(errs, ErrSecretReferenceNotAllowed)
 		}
 	}
 	for _, volume := range task.Spec.Volumes {
 		if volume.Secret != nil {
-			if isRadixBuildSecret(volume.Secret.SecretName) {
+			if isRadixBuildSecret(volume.Secret.SecretName) ||
+				isRadixGitDeployKeySecret(volume.Secret.SecretName) {
 				continue
 			}
-			return errorTaskContainsSecretRef(task)
+
+			errs = append(errs, ErrSecretReferenceNotAllowed)
 		}
 	}
 	if task.Spec.StepTemplate != nil &&
 		(containerEnvFromSourceHasNonRadixSecretRef(task.Spec.StepTemplate.EnvFrom) ||
 			containerEnvVarHasNonRadixSecretRef(task.Spec.StepTemplate.Env)) {
-		return errorTaskContainsSecretRef(task)
+
+		errs = append(errs, ErrSecretReferenceNotAllowed)
 	}
-	return nil
+	return errs
 }
 
 func volumeHasHostPath(task *pipelinev1.Task) bool {
@@ -64,12 +101,8 @@ func volumeHasHostPath(task *pipelinev1.Task) bool {
 	return false
 }
 
-func errorTaskContainsSecretRef(task *pipelinev1.Task) []error {
-	return []error{fmt.Errorf("invalid task %s: references to secrets are not allowed", task.GetName())}
-}
-
-func errorTaskContainsHostPath(task *pipelinev1.Task) []error {
-	return []error{fmt.Errorf("invalid task %s: HostPath is not allowed", task.GetName())}
+func errorTaskContainsInvalidVolumeName(volume corev1.Volume) error {
+	return errors.WithMessagef(ErrRadixVolumeNameNotAllowed, "volume %s has invalid name", volume.Name)
 }
 
 func containerEnvFromSourceHasNonRadixSecretRef(envFromSources []corev1.EnvFromSource) bool {
@@ -92,4 +125,7 @@ func containerEnvVarHasNonRadixSecretRef(envVars []corev1.EnvVar) bool {
 
 func isRadixBuildSecret(secretName string) bool {
 	return strings.EqualFold(secretName, defaults.SubstitutionRadixBuildSecretsTarget)
+}
+func isRadixGitDeployKeySecret(secretName string) bool {
+	return strings.EqualFold(secretName, operatorDefaults.GitPrivateKeySecretName)
 }
