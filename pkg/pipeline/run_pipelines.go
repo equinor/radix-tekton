@@ -12,6 +12,7 @@ import (
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
@@ -169,7 +170,11 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targ
 }
 
 func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
-	podTemplate := pod.Template{}
+	podTemplate := pod.Template{
+		SecurityContext: &corev1.PodSecurityContext{
+			RunAsNonRoot: utils.BoolPtr(true),
+		},
+	}
 
 	if ctx.radixApplication != nil && len(ctx.radixApplication.Spec.PrivateImageHubs) > 0 {
 		podTemplate.ImagePullSecrets = []corev1.LocalObjectReference{{Name: operatorDefaults.PrivateImageHubSecretName}}
