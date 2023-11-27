@@ -388,12 +388,28 @@ func getPipeline(pipelineFileName string) (*pipelinev1.Pipeline, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load the pipeline from the file %s: %v", pipelineFileName, err)
 	}
+
+	hotfixForPipelineTasksWithBrokenValue(&pipeline)
+
 	log.Debugf("loaded pipeline %s", pipelineFileName)
 	err = validation.ValidatePipeline(&pipeline)
 	if err != nil {
 		return nil, err
 	}
 	return &pipeline, nil
+}
+
+func hotfixForPipelineTasksWithBrokenValue(pipeline *pipelinev1.Pipeline) {
+	for it, task := range pipeline.Spec.Tasks {
+		for ip, p := range task.Params {
+			if p.Value.ObjectVal != nil && p.Value.ObjectVal["type"] == "string" && p.Value.ObjectVal["stringVal"] != "" {
+				pipeline.Spec.Tasks[it].Params[ip].Value = pipelinev1.ParamValue{
+					Type:      "string",
+					StringVal: p.Value.ObjectVal["stringVal"],
+				}
+			}
+		}
+	}
 }
 
 func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
