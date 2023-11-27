@@ -423,7 +423,10 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read data from the file %s: %v", fileName, err)
 		}
-
+		if !taskIsValid(&task) {
+			log.Debugf("skip the file %s - not a Tekton task", fileName)
+			continue
+		}
 		addGitDeployKeyVolume(&task)
 		taskMap[task.Name] = task
 	}
@@ -442,10 +445,6 @@ func addGitDeployKeyVolume(task *pipelinev1.Task) {
 	})
 }
 
-func fileMapContainsTektonTask(fileMap map[interface{}]interface{}) bool {
-	if kind, hasKind := fileMap["kind"]; !hasKind || fmt.Sprintf("%v", kind) != "Task" {
-		return false
-	}
-	apiVersion, hasApiVersion := fileMap["apiVersion"]
-	return hasApiVersion && strings.HasPrefix(fmt.Sprintf("%v", apiVersion), "tekton.dev/")
+func taskIsValid(task *pipelinev1.Task) bool {
+	return strings.HasPrefix(task.APIVersion, "tekton.dev/") && task.Kind == "Task" && len(task.ObjectMeta.Name) > 1
 }
