@@ -406,7 +406,8 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan pipeline folder %s: %v", pipelineFolder, err)
 	}
-	fileMap := make(map[interface{}]interface{})
+	// fileMap := make(map[interface{}]interface{})
+	task := pipelinev1.Task{}
 	taskMap := make(map[string]pipelinev1.Task)
 	for _, fileName := range fileNameList {
 		if strings.EqualFold(fileName, pipelineFilePath) {
@@ -419,18 +420,9 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixBuildSecretsSource, defaults.SubstitutionRadixBuildSecretsTarget))
 		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixGitDeployKeySource, defaults.SubstitutionRadixGitDeployKeyTarget))
 
-		err = yaml.Unmarshal(fileData, &fileMap)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read data from the file %s: %v", fileName, err)
-		}
-		if !fileMapContainsTektonTask(fileMap) {
-			log.Debugf("skip the file %s - not a Tekton task", fileName)
-			continue
-		}
-		var task pipelinev1.Task
 		err = yaml.Unmarshal(fileData, &task)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load the task from the file %s: %v", fileData, err)
+			return nil, fmt.Errorf("failed to read data from the file %s: %v", fileName, err)
 		}
 
 		addGitDeployKeyVolume(&task)
