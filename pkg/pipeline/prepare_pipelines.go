@@ -22,11 +22,11 @@ import (
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
-	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 var privateSshFolderMode int32 = 0444
@@ -388,12 +388,38 @@ func getPipeline(pipelineFileName string) (*pipelinev1.Pipeline, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load the pipeline from the file %s: %v", pipelineFileName, err)
 	}
+	hotfixForPipelineDefaultParamsWithBrokenValue(&pipeline)
+	hotfixForPipelineTasksParamsWithBrokenValue(&pipeline)
+
 	log.Debugf("loaded pipeline %s", pipelineFileName)
 	err = validation.ValidatePipeline(&pipeline)
 	if err != nil {
 		return nil, err
 	}
 	return &pipeline, nil
+}
+
+func hotfixForPipelineDefaultParamsWithBrokenValue(pipeline *pipelinev1.Pipeline) {
+	for ip, p := range pipeline.Spec.Params {
+		if p.Default != nil && p.Default.ObjectVal != nil && p.Type == "string" && p.Default.ObjectVal["stringVal"] != "" {
+			pipeline.Spec.Params[ip].Default = &pipelinev1.ParamValue{
+				Type:      "string",
+				StringVal: p.Default.ObjectVal["stringVal"],
+			}
+		}
+	}
+}
+func hotfixForPipelineTasksParamsWithBrokenValue(pipeline *pipelinev1.Pipeline) {
+	for it, task := range pipeline.Spec.Tasks {
+		for ip, p := range task.Params {
+			if p.Value.ObjectVal != nil && p.Value.ObjectVal["type"] == "string" && p.Value.ObjectVal["stringVal"] != "" {
+				pipeline.Spec.Tasks[it].Params[ip].Value = pipelinev1.ParamValue{
+					Type:      "string",
+					StringVal: p.Value.ObjectVal["stringVal"],
+				}
+			}
+		}
+	}
 }
 
 func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
@@ -406,7 +432,6 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan pipeline folder %s: %v", pipelineFolder, err)
 	}
-	fileMap := make(map[interface{}]interface{})
 	taskMap := make(map[string]pipelinev1.Task)
 	for _, fileName := range fileNameList {
 		if strings.EqualFold(fileName, pipelineFilePath) {
@@ -419,20 +444,15 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixBuildSecretsSource, defaults.SubstitutionRadixBuildSecretsTarget))
 		fileData = []byte(strings.ReplaceAll(string(fileData), defaults.SubstitutionRadixGitDeployKeySource, defaults.SubstitutionRadixGitDeployKeyTarget))
 
-		err = yaml.Unmarshal(fileData, &fileMap)
+		task := pipelinev1.Task{}
+		err = yaml.Unmarshal(fileData, &task)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read data from the file %s: %v", fileName, err)
 		}
-		if !fileMapContainsTektonTask(fileMap) {
+		if !taskIsValid(&task) {
 			log.Debugf("skip the file %s - not a Tekton task", fileName)
 			continue
 		}
-		var task pipelinev1.Task
-		err = yaml.Unmarshal(fileData, &task)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load the task from the file %s: %v", fileData, err)
-		}
-
 		addGitDeployKeyVolume(&task)
 		taskMap[task.Name] = task
 	}
@@ -451,10 +471,6 @@ func addGitDeployKeyVolume(task *pipelinev1.Task) {
 	})
 }
 
-func fileMapContainsTektonTask(fileMap map[interface{}]interface{}) bool {
-	if kind, hasKind := fileMap["kind"]; !hasKind || fmt.Sprintf("%v", kind) != "Task" {
-		return false
-	}
-	apiVersion, hasApiVersion := fileMap["apiVersion"]
-	return hasApiVersion && strings.HasPrefix(fmt.Sprintf("%v", apiVersion), "tekton.dev/")
+func taskIsValid(task *pipelinev1.Task) bool {
+	return strings.HasPrefix(task.APIVersion, "tekton.dev/") && task.Kind == "Task" && len(task.ObjectMeta.Name) > 1
 }
