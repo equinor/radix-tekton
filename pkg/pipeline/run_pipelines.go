@@ -65,13 +65,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 	pipelineRunMap, err := ctx.runPipelines(pipelineList.Items, namespace)
 
 	if err != nil {
-		err = fmt.Errorf("failed to run pipelines: %w", err)
-		deleteErrors := ctx.deletePipelineRuns(pipelineRunMap, namespace)
-		if len(deleteErrors) > 0 {
-			deleteErrors = append(deleteErrors, err)
-			return commonErrors.Concat(deleteErrors)
-		}
-		return err
+		return fmt.Errorf("failed to run pipelines: %w", err)
 	}
 
 	err = ctx.WaitForCompletionOf(pipelineRunMap)
@@ -90,20 +84,6 @@ func (ctx *pipelineContext) getTargetEnvsAsString() string {
 		envs = append(envs, envName)
 	}
 	return strings.Join(envs, ", ")
-}
-
-func (ctx *pipelineContext) deletePipelineRuns(pipelineRunMap map[string]*pipelinev1.PipelineRun, namespace string) []error {
-	var deleteErrors []error
-	for _, pipelineRun := range pipelineRunMap {
-		log.Debugf("delete the pipeline-run %s", pipelineRun.Name)
-		deleteErr := ctx.tektonClient.TektonV1().PipelineRuns(namespace).
-			Delete(context.Background(), pipelineRun.GetName(), metav1.DeleteOptions{})
-		if deleteErr != nil {
-			log.Debugf("failed to delete the pipeline-run %s", pipelineRun.Name)
-			deleteErrors = append(deleteErrors, deleteErr)
-		}
-	}
-	return deleteErrors
 }
 
 func (ctx *pipelineContext) runPipelines(pipelines []pipelinev1.Pipeline, namespace string) (map[string]*pipelinev1.PipelineRun, error) {
@@ -233,7 +213,7 @@ func (ctx *pipelineContext) WaitForCompletionOf(pipelineRuns map[string]*pipelin
 		return err
 	}
 	informer := genericInformer.Informer()
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			run, success := cur.(*pipelinev1.PipelineRun)
 			if !success {
