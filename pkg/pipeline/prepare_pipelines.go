@@ -388,8 +388,8 @@ func getPipeline(pipelineFileName string) (*pipelinev1.Pipeline, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load the pipeline from the file %s: %v", pipelineFileName, err)
 	}
-
-	hotfixForPipelineTasksWithBrokenValue(&pipeline)
+	hotfixForPipelineDefaultParamsWithBrokenValue(&pipeline)
+	hotfixForPipelineTasksParamsWithBrokenValue(&pipeline)
 
 	log.Debugf("loaded pipeline %s", pipelineFileName)
 	err = validation.ValidatePipeline(&pipeline)
@@ -399,7 +399,17 @@ func getPipeline(pipelineFileName string) (*pipelinev1.Pipeline, error) {
 	return &pipeline, nil
 }
 
-func hotfixForPipelineTasksWithBrokenValue(pipeline *pipelinev1.Pipeline) {
+func hotfixForPipelineDefaultParamsWithBrokenValue(pipeline *pipelinev1.Pipeline) {
+	for ip, p := range pipeline.Spec.Params {
+		if p.Default != nil && p.Default.ObjectVal != nil && p.Type == "string" && p.Default.ObjectVal["stringVal"] != "" {
+			pipeline.Spec.Params[ip].Default = &pipelinev1.ParamValue{
+				Type:      "string",
+				StringVal: p.Default.ObjectVal["stringVal"],
+			}
+		}
+	}
+}
+func hotfixForPipelineTasksParamsWithBrokenValue(pipeline *pipelinev1.Pipeline) {
 	for it, task := range pipeline.Spec.Tasks {
 		for ip, p := range task.Params {
 			if p.Value.ObjectVal != nil && p.Value.ObjectVal["type"] == "string" && p.Value.ObjectVal["stringVal"] != "" {
