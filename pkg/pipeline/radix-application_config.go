@@ -12,10 +12,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
-	"github.com/goccy/go-yaml"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 // ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
@@ -111,7 +111,7 @@ func (ctx *pipelineContext) setTargetEnvironmentsForPromote() error {
 		log.Infoln("pipeline type: promote")
 		return commonErrors.Concat(errs)
 	}
-	ctx.targetEnvironments = map[string]bool{ctx.env.GetRadixDeployToEnvironment(): true} //run Tekton pipelines for the promote target environment
+	ctx.targetEnvironments = map[string]bool{ctx.env.GetRadixDeployToEnvironment(): true} // run Tekton pipelines for the promote target environment
 	log.Infof("promote the deployment %s from the environment %s to %s", ctx.env.GetRadixPromoteDeployment(), ctx.env.GetRadixPromoteFromEnvironment(), ctx.env.GetRadixDeployToEnvironment())
 	return nil
 }
