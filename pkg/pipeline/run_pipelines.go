@@ -12,6 +12,7 @@ import (
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
@@ -64,13 +65,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 	pipelineRunMap, err := ctx.runPipelines(pipelineList.Items, namespace)
 
 	if err != nil {
-		err = fmt.Errorf("failed to run pipelines: %w", err)
-		deleteErrors := ctx.deletePipelineRuns(pipelineRunMap, namespace)
-		if len(deleteErrors) > 0 {
-			deleteErrors = append(deleteErrors, err)
-			return commonErrors.Concat(deleteErrors)
-		}
-		return err
+		return fmt.Errorf("failed to run pipelines: %w", err)
 	}
 
 	err = ctx.WaitForCompletionOf(pipelineRunMap)
@@ -89,20 +84,6 @@ func (ctx *pipelineContext) getTargetEnvsAsString() string {
 		envs = append(envs, envName)
 	}
 	return strings.Join(envs, ", ")
-}
-
-func (ctx *pipelineContext) deletePipelineRuns(pipelineRunMap map[string]*pipelinev1.PipelineRun, namespace string) []error {
-	var deleteErrors []error
-	for _, pipelineRun := range pipelineRunMap {
-		log.Debugf("delete the pipeline-run %s", pipelineRun.Name)
-		deleteErr := ctx.tektonClient.TektonV1().PipelineRuns(namespace).
-			Delete(context.Background(), pipelineRun.GetName(), metav1.DeleteOptions{})
-		if deleteErr != nil {
-			log.Debugf("failed to delete the pipeline-run %s", pipelineRun.Name)
-			deleteErrors = append(deleteErrors, deleteErr)
-		}
-	}
-	return deleteErrors
 }
 
 func (ctx *pipelineContext) runPipelines(pipelines []pipelinev1.Pipeline, namespace string) (map[string]*pipelinev1.PipelineRun, error) {
@@ -169,7 +150,11 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targ
 }
 
 func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
-	podTemplate := pod.Template{}
+	podTemplate := pod.Template{
+		SecurityContext: &corev1.PodSecurityContext{
+			RunAsNonRoot: utils.BoolPtr(true),
+		},
+	}
 
 	if ctx.radixApplication != nil && len(ctx.radixApplication.Spec.PrivateImageHubs) > 0 {
 		podTemplate.ImagePullSecrets = []corev1.LocalObjectReference{{Name: operatorDefaults.PrivateImageHubSecretName}}
@@ -228,7 +213,7 @@ func (ctx *pipelineContext) WaitForCompletionOf(pipelineRuns map[string]*pipelin
 		return err
 	}
 	informer := genericInformer.Informer()
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, _ = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			run, success := cur.(*pipelinev1.PipelineRun)
 			if !success {
