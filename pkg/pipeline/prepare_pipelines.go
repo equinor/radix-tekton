@@ -2,10 +2,12 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
+	"github.com/equinor/radix-tekton/pkg/utils/annotations"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
@@ -225,28 +228,77 @@ func (ctx *pipelineContext) pipelineFileExists(pipelineFilePath string) error {
 	return err
 }
 
-func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, timestamp string) map[string]pipelinev1.Task {
+func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, timestamp string) (map[string]pipelinev1.Task, error) {
+	var errs []error
 	taskMap := make(map[string]pipelinev1.Task)
 	for _, task := range tasks {
 		originalTaskName := task.Name
 		taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
-		task.ObjectMeta.Name = taskName
-		// TODO: Allow Az WI annotatoins and labels, always skip place-scripts;prepar containers
-		// 	labels:
-		// 		azure.workload.identity/use: "true"
-		// 	annotations:
-		// 		azure.workload.identity/skip-containers: show-user-id
-		m := map[string]string{defaults.PipelineTaskNameAnnotation: originalTaskName}
-		task.ObjectMeta.Annotations = m
-		task.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, envName)
+
+		// TODO: Move validation to validation package, maybe use "UserAllowedLabels/Annotations"?
+
+		for k, v := range labels.GetLabelsForEnvironment(ctx, envName) {
+			task.ObjectMeta.Labels[k] = v
+		}
+
+		if val, ok := task.ObjectMeta.Labels[labels.AzureWorkloadIdenityUse]; ok && val == "true" {
+			validateAzureSkipContainers(&task)
+		}
+
+		task.ObjectMeta.Annotations[defaults.PipelineTaskNameAnnotation] = originalTaskName
 		if ctx.ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 		}
 		ensureCorrectSecureContext(&task)
+
+		if err := labels.ValidateTaskLabels(task); err != nil {
+			errs = append(errs, err)
+		}
+		if err := annotations.ValidateTaskAnnotations(task); err != nil {
+			errs = append(errs, err)
+		}
+
+		task.ObjectMeta.Name = taskName
 		taskMap[originalTaskName] = task
 		log.Debugf("created the task %s", task.Name)
 	}
-	return taskMap
+	return taskMap, errors.Join(errs...)
+}
+
+func validateAzureSkipContainers(task *pipelinev1.Task) {
+	skip := strings.Split(task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentiySkipContainers], ";")
+	var updatedSkipNames []string
+
+	for _, containerName := range skip {
+		// check for container name without prefix "step-", and directly(but then warn that step- should be added)
+		if slices.ContainsFunc(task.Spec.Steps, func(s pipelinev1.Step) bool {
+			return "step-"+s.Name == containerName
+		}) {
+			updatedSkipNames = append(updatedSkipNames, containerName)
+			continue
+		}
+
+		if slices.ContainsFunc(task.Spec.Steps, func(s pipelinev1.Step) bool {
+			return s.Name == containerName
+		}) {
+			log.Infof("Adding 'step-' prefix to ignored AzureWorkloadIdentity containers in task %s for step %s", task.Name, containerName)
+			updatedSkipNames = append(updatedSkipNames, "step-"+containerName)
+			continue
+		}
+
+		// Task containers neither containerName or step-containerName,ignore it, but log the warning
+		log.Warnf("Trying to ignore unknown container %s in task %s for Azure Workload Identity", containerName, task.Name)
+	}
+
+	// Ignore Tekton init containers:
+	tektonInitContainers := []string{"place-scripts", "prepare"}
+
+	for _, tekton := range tektonInitContainers {
+		if !slices.Contains(skip, tekton) {
+			log.Infof("Ignoring %s container for azure workload identity in task %s", tekton, task.Name)
+			skip = append(skip, tekton)
+		}
+	}
 }
 
 func ensureCorrectSecureContext(task *pipelinev1.Task) {
@@ -321,10 +373,14 @@ func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, er
 }
 
 func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.Pipeline, tasks []pipelinev1.Task, timestamp string) error {
-	taskMap := ctx.buildTasks(envName, tasks, timestamp)
 
 	originalPipelineName := pipeline.Name
 	var errs []error
+	taskMap, err := ctx.buildTasks(envName, tasks, timestamp)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %s", originalPipelineName, err))
+	}
+
 	for i, pipelineSpecTask := range pipeline.Spec.Tasks {
 		task, ok := taskMap[pipelineSpecTask.TaskRef.Name]
 		if !ok {
@@ -346,7 +402,7 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 	if ctx.ownerReference != nil {
 		pipeline.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 	}
-	err := ctx.createTasks(taskMap)
+	err = ctx.createTasks(taskMap)
 	if err != nil {
 		return fmt.Errorf("tasks have not been created. Error: %w", err)
 	}
