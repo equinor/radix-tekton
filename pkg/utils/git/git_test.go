@@ -3,15 +3,16 @@ package git
 import (
 	"archive/zip"
 	"fmt"
-	"github.com/equinor/radix-tekton/pkg/utils/test"
-	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/equinor/radix-tekton/pkg/utils/test"
+	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const unzipDestination = "7c55c884-7a3e-4b1d-bb03-e7f8ce235d50"
@@ -38,7 +39,11 @@ func unzip(archivePath string) error {
 		}
 		if f.FileInfo().IsDir() {
 			fmt.Println("creating directory...")
-			os.MkdirAll(filePath, os.ModePerm)
+			err = os.MkdirAll(filePath, os.ModePerm)
+			if err != nil {
+				return err
+			}
+
 			continue
 		}
 

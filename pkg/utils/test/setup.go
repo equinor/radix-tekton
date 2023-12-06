@@ -19,7 +19,7 @@ func Setup(t *testing.T) (kubernetes.Interface, radixclient.Interface) {
 	return kubeclient, radixclient
 }
 
-func (params *TestParams) ApplyRd(radixClient radixclient.Interface) *v1.RadixDeployment {
+func (params *TestParams) ApplyRd(radixClient radixclient.Interface) (*v1.RadixDeployment, error) {
 	rd := utils.ARadixDeployment().
 		WithDeploymentName(params.DeploymentName).
 		WithAppName(params.AppName).
@@ -27,8 +27,12 @@ func (params *TestParams) ApplyRd(radixClient radixclient.Interface) *v1.RadixDe
 		WithComponents().
 		WithJobComponents().
 		BuildRD()
-	radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rd, metav1.CreateOptions{})
-	return rd
+	_, err := radixClient.RadixV1().RadixDeployments(rd.Namespace).Create(context.Background(), rd, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return rd, nil
 }
 
 type TestParams struct {
