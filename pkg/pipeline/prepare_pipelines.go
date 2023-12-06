@@ -231,7 +231,13 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 		originalTaskName := task.Name
 		taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
 		task.ObjectMeta.Name = taskName
-		task.ObjectMeta.Annotations = map[string]string{defaults.PipelineTaskNameAnnotation: originalTaskName}
+		// TODO: Allow Az WI annotatoins and labels, always skip place-scripts;prepar containers
+		// 	labels:
+		// 		azure.workload.identity/use: "true"
+		// 	annotations:
+		// 		azure.workload.identity/skip-containers: show-user-id
+		m := map[string]string{defaults.PipelineTaskNameAnnotation: originalTaskName}
+		task.ObjectMeta.Annotations = m
 		task.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, envName)
 		if ctx.ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}

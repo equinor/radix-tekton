@@ -134,7 +134,8 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targ
 			PipelineRef: &pipelinev1.PipelineRef{Name: pipeline.GetName()},
 			Params:      pipelineParams,
 			TaskRunTemplate: pipelinev1.PipelineTaskRunTemplate{
-				PodTemplate: ctx.buildPipelineRunPodTemplate(),
+				PodTemplate:        ctx.buildPipelineRunPodTemplate(),
+				ServiceAccountName: utils.GetSubPipelineServiceAccountName(targetEnv),
 			},
 		},
 	}
