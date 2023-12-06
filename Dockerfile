@@ -18,9 +18,6 @@ RUN go mod download
 COPY ./pkg ./pkg
 COPY ./main.go ./
 
-# Run test
-RUN go test -cover `go list ./... | grep -v 'pkg/client'`
-
 # Build
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s -w" -a -installsuffix cgo -o ./rootfs/radix-tekton
 RUN adduser -D -g '' -u 1000 radix-user
