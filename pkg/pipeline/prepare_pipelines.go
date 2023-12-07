@@ -297,7 +297,7 @@ func validateAzureSkipContainers(task *pipelinev1.Task) {
 		}
 	}
 
-	task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentiySkipContainers] = strings.Join(skip, ";")
+	task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentiySkipContainers] = strings.Join(updatedSkipNames, ";")
 }
 
 func ensureCorrectSecureContext(task *pipelinev1.Task) {
