@@ -40,7 +40,7 @@ func GetLabelsForEnvironment(ctx models.Context, targetEnv string) map[string]st
 func ValidateTaskLabels(task pipelinev1.Task) error {
 	var errs []error
 
-	for key, value := range task.ObjectMeta.Annotations {
+	for key, value := range task.ObjectMeta.Labels {
 		if !slices.Contains(AllowedLabels, key) {
 			errs = append(errs, fmt.Errorf("label %s=%s is not allowed in task %s: %w", key, value, task.Name, validation.ErrIllegalTaskLabel))
 		}

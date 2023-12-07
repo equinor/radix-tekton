@@ -107,7 +107,7 @@ func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToB
 	if err != nil {
 		return nil, false, err
 	}
-	err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, pipelineTargetCommitHash, commitTags)
+	err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, pipelineTargetCommitHash, commitTags, ctx.ownerReference)
 	if err != nil {
 		return nil, false, err
 	}
@@ -234,6 +234,12 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 	for _, task := range tasks {
 		originalTaskName := task.Name
 		taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
+		if task.ObjectMeta.Labels == nil {
+			task.ObjectMeta.Labels = map[string]string{}
+		}
+		if task.ObjectMeta.Annotations == nil {
+			task.ObjectMeta.Annotations = map[string]string{}
+		}
 
 		// TODO: Move validation to validation package, maybe use "UserAllowedLabels/Annotations"?
 

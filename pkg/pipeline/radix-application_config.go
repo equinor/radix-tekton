@@ -52,20 +52,23 @@ func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBui
 	if err != nil {
 		return err
 	}
-	_, err = ctx.kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
-		context.Background(),
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      env.GetRadixConfigMapName(),
-				Namespace: env.GetAppNamespace(),
-				Labels:    map[string]string{kube.RadixJobNameLabel: ctx.GetEnv().GetRadixPipelineJobName()},
-			},
-			Data: map[string]string{
-				pipelineDefaults.PipelineConfigMapContent:      configFileContent,
-				pipelineDefaults.PipelineConfigMapBuildContext: string(buildContext),
-			},
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            env.GetRadixConfigMapName(),
+			Namespace:       env.GetAppNamespace(),
+			Labels:          map[string]string{kube.RadixJobNameLabel: ctx.GetEnv().GetRadixPipelineJobName()},
+			OwnerReferences: []metav1.OwnerReference{*ctx.ownerReference},
 		},
-		metav1.CreateOptions{})
+		Data: map[string]string{
+			pipelineDefaults.PipelineConfigMapContent:      configFileContent,
+			pipelineDefaults.PipelineConfigMapBuildContext: string(buildContext),
+		},
+	}
+	if ctx.ownerReference != nil {
+		cm.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
+	}
+
+	_, err = ctx.kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(context.Background(), &cm, metav1.CreateOptions{})
 
 	if err != nil {
 		return err
