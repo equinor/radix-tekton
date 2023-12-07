@@ -10,7 +10,7 @@ import (
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -76,10 +76,10 @@ func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBui
 
 func (ctx *pipelineContext) setTargetEnvironments() error {
 	log.Debug("Set target environment")
-	if ctx.GetConfig().GetRadixPipelineType() == v1.Promote {
+	if ctx.GetConfig().GetRadixPipelineType() == radixv1.Promote {
 		return ctx.setTargetEnvironmentsForPromote()
 	}
-	if ctx.GetConfig().GetRadixPipelineType() == v1.Deploy {
+	if ctx.GetConfig().GetRadixPipelineType() == radixv1.Deploy {
 		return ctx.setTargetEnvironmentsForDeploy()
 	}
 	targetEnvironments := applicationconfig.GetTargetEnvironments(ctx.cfg.GetBranch(), ctx.radixApplication)
@@ -112,7 +112,7 @@ func (ctx *pipelineContext) setTargetEnvironmentsForPromote() error {
 		return commonErrors.Concat(errs)
 	}
 	ctx.targetEnvironments = map[string]bool{ctx.cfg.GetRadixDeployToEnvironment(): true} // run Tekton pipelines for the promote target environment
-	log.Infof("promote the deployment %s from the environment %s to %s", ctx.cfg.GetRadixPromoteDeployment(), ctx.env.GetRadixPromoteFromEnvironment(), ctx.env.GetRadixDeployToEnvironment())
+	log.Infof("promote the deployment %s from the environment %s to %s", ctx.cfg.GetRadixPromoteDeployment(), ctx.cfg.GetRadixPromoteFromEnvironment(), ctx.cfg.GetRadixDeployToEnvironment())
 	return nil
 }
 
