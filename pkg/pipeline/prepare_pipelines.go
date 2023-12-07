@@ -241,8 +241,6 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 			task.ObjectMeta.Annotations = map[string]string{}
 		}
 
-		// TODO: Move validation to validation package, maybe use "UserAllowedLabels/Annotations"?
-
 		for k, v := range labels.GetLabelsForEnvironment(ctx, envName) {
 			task.ObjectMeta.Labels[k] = v
 		}
@@ -256,13 +254,6 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 		}
 		ensureCorrectSecureContext(&task)
-
-		if err := labels.ValidateTaskLabels(task); err != nil {
-			errs = append(errs, err)
-		}
-		if err := annotations.ValidateTaskAnnotations(task); err != nil {
-			errs = append(errs, err)
-		}
 
 		task.ObjectMeta.Name = taskName
 		taskMap[originalTaskName] = task

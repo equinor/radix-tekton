@@ -2,13 +2,22 @@ package validation
 
 import (
 	stderrors "errors"
+	"fmt"
+	"slices"
 	"strings"
 
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-tekton/pkg/defaults"
+	"github.com/equinor/radix-tekton/pkg/utils/annotations"
+	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/pkg/errors"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
+)
+
+var (
+	allowedUserAnnotations = []string{annotations.AzureWorkloadIdentiySkipContainers}
+	allowedUserLabels      = []string{labels.AzureWorkloadIdenityUse}
 )
 
 // ValidateTask Validate task
@@ -17,6 +26,8 @@ func ValidateTask(task *pipelinev1.Task) error {
 	errs = append(errs, validateTaskSecretRefDoesNotExist(task)...)
 	errs = append(errs, validateVolumeName(task)...)
 	errs = append(errs, validateTaskSteps(task)...)
+	errs = append(errs, validateTaskLabels(task)...)
+	errs = append(errs, validateTaskAnnotations(task)...)
 	err := stderrors.Join(errs...)
 
 	if err != nil {
@@ -48,6 +59,30 @@ func validateVolumeName(task *pipelinev1.Task) []error {
 		}
 
 		errs = append(errs, errorTaskContainsInvalidVolumeName(volume))
+	}
+
+	return errs
+}
+
+func validateTaskLabels(task *pipelinev1.Task) []error {
+	var errs []error
+
+	for key, value := range task.ObjectMeta.Labels {
+		if !slices.Contains(allowedUserLabels, key) {
+			errs = append(errs, fmt.Errorf("label '%s=%s' is not allowed in task '%s': %w", key, value, task.Name, ErrIllegalTaskLabel))
+		}
+	}
+
+	return errs
+}
+
+func validateTaskAnnotations(task *pipelinev1.Task) []error {
+	var errs []error
+
+	for key, value := range task.ObjectMeta.Annotations {
+		if !slices.Contains(allowedUserAnnotations, key) {
+			errs = append(errs, fmt.Errorf("annotation '%s=%s' is not allowed in task '%s': %w", key, value, task.Name, ErrIllegalTaskAnnotation))
+		}
 	}
 
 	return errs
