@@ -46,7 +46,7 @@ echo:
 
 
 .PHONY: test
-test:	
+test:
 	go test -cover `go list ./... | grep -v 'pkg/client'`
 
 .PHONY: build
@@ -63,6 +63,7 @@ deploy: build
 .PHONY: mocks
 mocks:
 	mockgen -source ./pkg/models/env/env.go -destination ./pkg/models/env/env_mock.go -package env
+	mockgen -source ./pkg/internal/wait/pipelinerun.go -destination ./pkg/internal/wait/pipelinerun_mock.go -package wait
 
 .PHONY: staticcheck
 staticcheck:
