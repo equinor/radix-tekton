@@ -23,12 +23,10 @@ import (
 
 const (
 	appName              = "test-app"
-	envDev               = "dev"
 	branchMain           = "main"
 	radixImageTag        = "tag-123"
 	radixPipelineJobName = "pipeline-job-123"
 	radixConfigMapName   = "cm-name"
-	hash                 = "some-hash"
 )
 
 var (
