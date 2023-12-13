@@ -26,6 +26,4 @@ type Context interface {
 	GetRadixApplication() *v1.RadixApplication
 	// GetPipelineRunsWaiter Returns a waiter that returns when all pipelineruns have completed
 	GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter
-	// WithPipelineRunsWaiter allows to change the current waiter for a adifferent implementation
-	WithPipelineRunsWaiter(waiter wait.PipelineRunsCompletionWaiter)
 }

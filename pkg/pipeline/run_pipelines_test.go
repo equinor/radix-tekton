@@ -51,10 +51,9 @@ func Test_RunPipeline_Has_ServiceAccount(t *testing.T) {
 	mockEnv.EXPECT().GetRadixConfigMapName().Return(radixConfigMapName).AnyTimes()
 	mockEnv.EXPECT().GetRadixDeployToEnvironment().Return("dev").AnyTimes()
 	kubeclient, rxclient, tknclient := test.Setup()
-	ctx := pipeline.NewPipelineContext(kubeclient, rxclient, tknclient, mockEnv)
 	waiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 	waiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
-	ctx.WithPipelineRunsWaiter(waiter)
+	ctx := pipeline.NewPipelineContext(kubeclient, rxclient, tknclient, mockEnv, pipeline.WithPipelineRunsWaiter(waiter))
 
 	_, err := kubeclient.CoreV1().ConfigMaps(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: radixConfigMapName},

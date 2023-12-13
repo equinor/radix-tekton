@@ -138,10 +138,12 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 	return "", fmt.Errorf("unknown pipeline type %s", ctx.env.GetRadixPipelineType())
 }
 
+type NewPipelineContextOption func(ctx *pipelineContext)
+
 // NewPipelineContext Create new NewPipelineContext instance
-func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, environment env.Env) models.Context {
+func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, environment env.Env, options ...NewPipelineContextOption) models.Context {
 	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
-	return &pipelineContext{
+	ctx := &pipelineContext{
 		kubeClient:     kubeClient,
 		radixClient:    radixClient,
 		tektonClient:   tektonClient,
@@ -150,8 +152,16 @@ func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient
 		ownerReference: ownerReference,
 		waiter:         wait.NewPipelineRunsCompletionWaiter(tektonClient),
 	}
+
+	for _, option := range options {
+		option(ctx)
+	}
+
+	return ctx
 }
 
-func (ctx *pipelineContext) WithPipelineRunsWaiter(waiter wait.PipelineRunsCompletionWaiter) {
-	ctx.waiter = waiter
+func WithPipelineRunsWaiter(waiter wait.PipelineRunsCompletionWaiter) NewPipelineContextOption {
+	return func(ctx *pipelineContext) {
+		ctx.waiter = waiter
+	}
 }
