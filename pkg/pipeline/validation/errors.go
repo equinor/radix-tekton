@@ -10,4 +10,5 @@ var (
 
 	ErrIllegalTaskAnnotation = errors.New("annotation is not allowed")
 	ErrIllegalTaskLabel      = errors.New("label is not allowed")
+	ErrSkipStepNotFound      = errors.New("skip step is not found in task")
 )

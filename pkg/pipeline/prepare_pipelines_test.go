@@ -485,7 +485,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			},
 		},
 		{
-			name: "Test validateAzureSkipContainers in task stepTemplate",
+			name: "Test sanitizeAzureSkipContainersAnnotation in task stepTemplate",
 			args: args{
 				envName: envDev,
 				pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) {

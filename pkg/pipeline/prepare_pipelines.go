@@ -246,7 +246,7 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 		}
 
 		if val, ok := task.ObjectMeta.Labels[labels.AzureWorkloadIdentityUse]; ok && val == "true" {
-			validateAzureSkipContainers(&task)
+			errs = append(errs, sanitizeAzureSkipContainersAnnotation(&task))
 		}
 
 		task.ObjectMeta.Annotations[defaults.PipelineTaskNameAnnotation] = originalTaskName
@@ -262,42 +262,26 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 	return taskMap, errors.Join(errs...)
 }
 
-func validateAzureSkipContainers(task *pipelinev1.Task) {
-	skip := strings.Split(task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentitySkipContainers], ";")
-	var updatedSkipNames []string
+func sanitizeAzureSkipContainersAnnotation(task *pipelinev1.Task) error {
+	skipSteps := strings.Split(task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentitySkipContainers], ";")
 
-	for _, containerName := range skip {
-		// check for container name without prefix "step-", and directly(but then warn that step- should be added)
-		if slices.ContainsFunc(task.Spec.Steps, func(s pipelinev1.Step) bool {
-			return "step-"+s.Name == containerName
-		}) {
-			updatedSkipNames = append(updatedSkipNames, containerName)
-			continue
-		}
-
-		if slices.ContainsFunc(task.Spec.Steps, func(s pipelinev1.Step) bool {
-			return s.Name == containerName
-		}) {
-			log.Infof("Adding 'step-' prefix to ignored Azure Workload Identity containers in task '%s' for step '%s'", task.Name, containerName)
-			updatedSkipNames = append(updatedSkipNames, "step-"+containerName)
-			continue
-		}
-
-		// Task containers neither containerName or step-containerName,ignore it, but log the warning
-		log.Warnf("Trying to ignore unknown container '%s' in task '%s' for Azure Workload Identity", containerName, task.Name)
-	}
-
-	// Ignore Tekton init containers:
-	tektonInitContainers := []string{"place-scripts", "prepare"}
-
-	for _, tekton := range tektonInitContainers {
-		if !slices.Contains(updatedSkipNames, tekton) {
-			log.Infof("Ignoring '%s' container for azure workload identity in task '%s'", tekton, task.Name)
-			updatedSkipNames = append(updatedSkipNames, tekton)
+	var errs []error
+	for _, step := range skipSteps {
+		containsStep := slices.ContainsFunc(task.Spec.Steps, func(s pipelinev1.Step) bool {
+			return s.Name == step
+		})
+		if !containsStep {
+			errs = append(errs, fmt.Errorf("step '%s' is not defined in task '%s': %w", step, task.Name, validation.ErrSkipStepNotFound))
 		}
 	}
 
-	task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentitySkipContainers] = strings.Join(updatedSkipNames, ";")
+	SkipContainers := []string{"place-scripts", "prepare"}
+	for _, stepName := range skipSteps {
+		SkipContainers = append(SkipContainers, "step-"+stepName)
+	}
+
+	task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentitySkipContainers] = strings.Join(SkipContainers, ";")
+	return errors.Join(errs...)
 }
 
 func ensureCorrectSecureContext(task *pipelinev1.Task) {
