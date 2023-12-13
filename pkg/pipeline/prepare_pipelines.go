@@ -85,7 +85,7 @@ func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.Environme
 			})
 		}
 	}
-	err := commonErrors.Concat(errs)
+	err := errors.Join(errs...)
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +361,7 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 	var errs []error
 	taskMap, err := ctx.buildTasks(envName, tasks, timestamp)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %s", originalPipelineName, err))
+		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %w", originalPipelineName, err))
 	}
 
 	for i, pipelineSpecTask := range pipeline.Spec.Tasks {
@@ -373,7 +373,7 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 		pipeline.Spec.Tasks[i].TaskRef = &pipelinev1.TaskRef{Name: task.Name}
 	}
 	if len(errs) > 0 {
-		return commonErrors.Concat(errs)
+		return errors.Join(errs...)
 	}
 	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", getShortName(envName), getShortName(originalPipelineName), timestamp, ctx.hash)
 	pipeline.ObjectMeta.Name = pipelineName

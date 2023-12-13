@@ -11,6 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -519,6 +520,30 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 				assert.Contains(t, skipContainers, "place-scripts")
 				assert.Contains(t, skipContainers, "prepare")
 			},
+		},
+		{
+			name: "Test unknown steps is not allowed in sanitizeAzureSkipContainersAnnotation",
+			args: args{
+				envName: envDev,
+				pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) {
+					pipeline.ObjectMeta.Name = "pipeline1"
+					pipeline.Spec.Tasks = append(pipeline.Spec.Tasks, pipelinev1.PipelineTask{Name: "identity", TaskRef: &pipelinev1.TaskRef{Name: "task1"}})
+				}),
+				tasks: []pipelinev1.Task{{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "task1",
+						Annotations: map[string]string{"azure.workload.identity/skip-containers": "skip-id;unknown-step"},
+						Labels:      map[string]string{labels.AzureWorkloadIdentityUse: "true"},
+					},
+					Spec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{
+						{Name: "get-secret"}, {Name: "skip-id"}},
+					}},
+				},
+			},
+			wantErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, validation.ErrSkipStepNotFound)
+			},
+			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {},
 		},
 	}
 	for _, scenario := range scenarios {
