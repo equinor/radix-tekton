@@ -1,5 +1,5 @@
 package annotations
 
 const (
-	AzureWorkloadIdentiySkipContainers = "azure.workload.identity/skip-containers"
+	AzureWorkloadIdentitySkipContainers = "azure.workload.identity/skip-containers"
 )

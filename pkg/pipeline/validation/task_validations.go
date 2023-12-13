@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	allowedUserAnnotations = []string{annotations.AzureWorkloadIdentiySkipContainers}
-	allowedUserLabels      = []string{labels.AzureWorkloadIdenityUse}
+	allowedUserAnnotations = []string{annotations.AzureWorkloadIdentitySkipContainers}
+	allowedUserLabels      = []string{labels.AzureWorkloadIdentityUse}
 )
 
 // ValidateTask Validate task

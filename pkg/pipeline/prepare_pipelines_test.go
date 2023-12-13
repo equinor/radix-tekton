@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	commonUtils "github.com/equinor/radix-common/utils"
@@ -10,8 +11,10 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	radixclientfake "github.com/equinor/radix-operator/pkg/client/clientset/versioned/fake"
 	"github.com/equinor/radix-tekton/pkg/models/env"
+	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclientfake "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/fake"
 	corev1 "k8s.io/api/core/v1"
@@ -194,7 +197,7 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 		fields         fields
 		args           args
 		wantErr        func(t *testing.T, err error)
-		assertScenario func(t *testing.T, ctx *pipelineContext)
+		assertScenario func(t *testing.T, ctx *pipelineContext, pipelineName string)
 	}{
 		{
 			name: "one default task",
@@ -215,19 +218,19 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
-				assert.Nil(t, err)
-				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
+			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, pipeline.Spec.Tasks, 1)
 				task := pipeline.Spec.Tasks[0]
 				assert.Equal(t, "task1", task.Name)
-				assert.Equal(t, 1, len(task.TaskSpec.Steps))
+				require.Len(t, task.TaskSpec.Steps, 1)
 				assert.Equal(t, "step1", task.TaskSpec.Steps[0].Name)
 				assert.Equal(t, 1, len(task.TaskSpec.Sidecars))
 				assert.Equal(t, "sidecar1", task.TaskSpec.Sidecars[0].Name)
 				assert.Equal(t, "image1", task.TaskSpec.StepTemplate.Image)
 				assert.NotNilf(t, pipeline.ObjectMeta.OwnerReferences, "Expected owner reference to be set")
-				assert.Len(t, pipeline.ObjectMeta.OwnerReferences, 1)
+				require.Len(t, pipeline.ObjectMeta.OwnerReferences, 1)
 				assert.Equal(t, "RadixApplication", pipeline.ObjectMeta.OwnerReferences[0].Kind)
 				assert.Equal(t, appName, pipeline.ObjectMeta.OwnerReferences[0].Name)
 			},
@@ -262,12 +265,12 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
-				assert.Nil(t, err)
-				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
+			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Equal(t, 1, len(pipeline.Spec.Tasks))
 				task := pipeline.Spec.Tasks[0]
-				assert.Equal(t, 1, len(task.TaskSpec.Steps))
+				require.Equal(t, 1, len(task.TaskSpec.Steps))
 				step := task.TaskSpec.Steps[0]
 				assert.NotNil(t, step.SecurityContext)
 				assert.Equal(t, commonUtils.BoolPtr(true), step.SecurityContext.RunAsNonRoot)
@@ -312,12 +315,12 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
-				assert.Nil(t, err)
-				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
+			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Equal(t, 1, len(pipeline.Spec.Tasks))
 				task := pipeline.Spec.Tasks[0]
-				assert.Equal(t, 1, len(task.TaskSpec.Sidecars))
+				require.Equal(t, 1, len(task.TaskSpec.Sidecars))
 				sidecar := task.TaskSpec.Sidecars[0]
 				assert.NotNil(t, sidecar.SecurityContext)
 				assert.Equal(t, commonUtils.BoolPtr(true), sidecar.SecurityContext.RunAsNonRoot)
@@ -359,10 +362,10 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
-				assert.Nil(t, err)
-				assert.Equal(t, 1, len(pipeline.Spec.Tasks))
+			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Equal(t, 1, len(pipeline.Spec.Tasks))
 				task := pipeline.Spec.Tasks[0]
 				stepTemplate := task.TaskSpec.StepTemplate
 				assert.NotNil(t, stepTemplate)
@@ -400,9 +403,11 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
-				assert.Nil(t, err)
+			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, pipeline.Spec.Tasks, 1)
+				require.Len(t, pipeline.Spec.Tasks[0].TaskSpec.Steps, 1)
 				step := pipeline.Spec.Tasks[0].TaskSpec.Steps[0]
 				assert.NotNil(t, step.SecurityContext.RunAsUser)
 				assert.Equal(t, 10, *step.SecurityContext.RunAsUser)
@@ -434,9 +439,11 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
-				assert.Nil(t, err)
+			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, pipeline.Spec.Tasks, 1)
+				require.Len(t, pipeline.Spec.Tasks[0].TaskSpec.Sidecars, 1)
 				sidecar := pipeline.Spec.Tasks[0].TaskSpec.Sidecars[0]
 				assert.NotNil(t, sidecar.SecurityContext.RunAsUser)
 				assert.Equal(t, 10, *sidecar.SecurityContext.RunAsUser)
@@ -465,15 +472,52 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			wantErr: func(t *testing.T, err error) {
 				assert.Nil(t, err)
 			},
-			assertScenario: func(t *testing.T, ctx *pipelineContext) {
-				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), "pipeline1", metav1.GetOptions{})
-				assert.Nil(t, err)
+			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, pipeline.Spec.Tasks, 1)
 				stepTemplate := pipeline.Spec.Tasks[0].TaskSpec.StepTemplate
-				assert.NotNil(t, stepTemplate.SecurityContext.RunAsUser)
+				require.NotNil(t, stepTemplate.SecurityContext.RunAsUser)
 				assert.Equal(t, 10, *stepTemplate.SecurityContext.RunAsUser)
 				assert.Nil(t, stepTemplate.SecurityContext.RunAsGroup)
 				assert.NotNil(t, stepTemplate.SecurityContext.RunAsGroup)
 				assert.Equal(t, 20, stepTemplate.SecurityContext.RunAsGroup)
+			},
+		},
+		{
+			name: "Test validateAzureSkipContainers in task stepTemplate",
+			args: args{
+				envName: envDev,
+				pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) {
+					pipeline.ObjectMeta.Name = "pipeline1"
+					pipeline.Spec.Tasks = append(pipeline.Spec.Tasks, pipelinev1.PipelineTask{Name: "identity", TaskRef: &pipelinev1.TaskRef{Name: "task1"}})
+				}),
+				tasks: []pipelinev1.Task{{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:        "task1",
+						Annotations: map[string]string{"azure.workload.identity/skip-containers": "skip-id"},
+						Labels:      map[string]string{labels.AzureWorkloadIdentityUse: "true"},
+					},
+					Spec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{
+						{Name: "get-secret"}, {Name: "skip-id"}},
+					}},
+				},
+			},
+			wantErr: func(t *testing.T, err error) {
+				assert.Nil(t, err)
+			},
+			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {
+				pipeline, err := ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Get(context.Background(), pipelineName, metav1.GetOptions{})
+				require.NoError(t, err)
+				require.Len(t, pipeline.Spec.Tasks, 1)
+				task, err := ctx.tektonClient.TektonV1().Tasks(ctx.env.GetAppNamespace()).Get(context.Background(), pipeline.Spec.Tasks[0].TaskRef.Name, metav1.GetOptions{})
+				require.NoError(t, err)
+
+				skipContainers := strings.Split(task.Annotations["azure.workload.identity/skip-containers"], ";")
+				assert.Len(t, skipContainers, 3)
+				assert.Contains(t, skipContainers, "step-skip-id")
+				assert.Contains(t, skipContainers, "place-scripts")
+				assert.Contains(t, skipContainers, "prepare")
 			},
 		},
 	}
@@ -511,7 +555,9 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			if ctx.hash == "" {
 				ctx.hash = hash
 			}
-			scenario.wantErr(t, ctx.createPipeline(scenario.args.envName, scenario.args.pipeline, scenario.args.tasks, scenario.args.timestamp))
+			err := ctx.createPipeline(scenario.args.envName, scenario.args.pipeline, scenario.args.tasks, scenario.args.timestamp)
+			scenario.wantErr(t, err)
+			scenario.assertScenario(t, ctx, scenario.args.pipeline.ObjectMeta.Name)
 		})
 	}
 }

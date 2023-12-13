@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	AzureWorkloadIdenityUse = "azure.workload.identity/use"
+	AzureWorkloadIdentityUse = "azure.workload.identity/use"
 )
 
 // GetLabelsForEnvironment Get Pipeline object labels for a target build environment

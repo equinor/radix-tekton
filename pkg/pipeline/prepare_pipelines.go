@@ -245,7 +245,7 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 			task.ObjectMeta.Labels[k] = v
 		}
 
-		if val, ok := task.ObjectMeta.Labels[labels.AzureWorkloadIdenityUse]; ok && val == "true" {
+		if val, ok := task.ObjectMeta.Labels[labels.AzureWorkloadIdentityUse]; ok && val == "true" {
 			validateAzureSkipContainers(&task)
 		}
 
@@ -263,7 +263,7 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 }
 
 func validateAzureSkipContainers(task *pipelinev1.Task) {
-	skip := strings.Split(task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentiySkipContainers], ";")
+	skip := strings.Split(task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentitySkipContainers], ";")
 	var updatedSkipNames []string
 
 	for _, containerName := range skip {
@@ -291,13 +291,13 @@ func validateAzureSkipContainers(task *pipelinev1.Task) {
 	tektonInitContainers := []string{"place-scripts", "prepare"}
 
 	for _, tekton := range tektonInitContainers {
-		if !slices.Contains(skip, tekton) {
+		if !slices.Contains(updatedSkipNames, tekton) {
 			log.Infof("Ignoring '%s' container for azure workload identity in task '%s'", tekton, task.Name)
-			skip = append(skip, tekton)
+			updatedSkipNames = append(updatedSkipNames, tekton)
 		}
 	}
 
-	task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentiySkipContainers] = strings.Join(updatedSkipNames, ";")
+	task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentitySkipContainers] = strings.Join(updatedSkipNames, ";")
 }
 
 func ensureCorrectSecureContext(task *pipelinev1.Task) {
