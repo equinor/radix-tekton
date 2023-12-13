@@ -19,8 +19,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// assert.Equal(t, utils.GetSubPipelineServiceAccountName(envDev), pipeline.)
-
 const (
 	appName              = "test-app"
 	branchMain           = "main"
