@@ -54,10 +54,9 @@ func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBui
 	}
 	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            env.GetRadixConfigMapName(),
-			Namespace:       env.GetAppNamespace(),
-			Labels:          map[string]string{kube.RadixJobNameLabel: ctx.GetEnv().GetRadixPipelineJobName()},
-			OwnerReferences: []metav1.OwnerReference{*ctx.ownerReference},
+			Name:      env.GetRadixConfigMapName(),
+			Namespace: env.GetAppNamespace(),
+			Labels:    map[string]string{kube.RadixJobNameLabel: ctx.GetEnv().GetRadixPipelineJobName()},
 		},
 		Data: map[string]string{
 			pipelineDefaults.PipelineConfigMapContent:      configFileContent,
