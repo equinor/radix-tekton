@@ -277,7 +277,7 @@ func sanitizeAzureSkipContainersAnnotation(task *pipelinev1.Task) error {
 			return strings.ToLower(strings.TrimSpace(s.Name)) == sanitizedSkipStepName
 		})
 		if !containsStep {
-			errs = append(errs, fmt.Errorf("step %s is not defined in task: %w", sanitizedSkipStepName, validation.ErrSkipStepNotFound))
+			errs = append(errs, fmt.Errorf("step %s is not defined: %w", sanitizedSkipStepName, validation.ErrSkipStepNotFound))
 		}
 	}
 
