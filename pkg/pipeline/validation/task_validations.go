@@ -67,9 +67,9 @@ func validateVolumeName(task *pipelinev1.Task) []error {
 func validateTaskLabels(task *pipelinev1.Task) []error {
 	var errs []error
 
-	for key, value := range task.ObjectMeta.Labels {
+	for key := range task.ObjectMeta.Labels {
 		if !slices.Contains(allowedUserLabels, key) {
-			errs = append(errs, fmt.Errorf("label '%s=%s' is not allowed in task '%s': %w", key, value, task.Name, ErrIllegalTaskLabel))
+			errs = append(errs, fmt.Errorf("label %s is not allowed: %w", key, ErrIllegalTaskLabel))
 		}
 	}
 
@@ -79,7 +79,7 @@ func validateTaskLabels(task *pipelinev1.Task) []error {
 func validateTaskAnnotations(task *pipelinev1.Task) []error {
 	var errs []error
 
-	for key, _ := range task.ObjectMeta.Annotations {
+	for key := range task.ObjectMeta.Annotations {
 		if !slices.Contains(allowedUserAnnotations, key) {
 			errs = append(errs, fmt.Errorf("annotation %s is not allowed: %w", key, ErrIllegalTaskAnnotation))
 		}
