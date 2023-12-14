@@ -2,9 +2,11 @@ package pipeline
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/equinor/radix-tekton/pkg/internal/wait"
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
-	"strings"
 
 	"github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -27,6 +29,7 @@ type pipelineContext struct {
 	targetEnvironments map[string]bool
 	hash               string
 	ownerReference     *metav1.OwnerReference
+	waiter             wait.PipelineRunsCompletionWaiter
 }
 
 func (ctx *pipelineContext) GetEnv() env.Env {
@@ -47,6 +50,10 @@ func (ctx *pipelineContext) GetTektonClient() tektonclient.Interface {
 
 func (ctx *pipelineContext) GetRadixApplication() *v1.RadixApplication {
 	return ctx.radixApplication
+}
+
+func (ctx *pipelineContext) GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter {
+	return ctx.waiter
 }
 
 func (ctx *pipelineContext) getEnvVars(targetEnv string) v1.EnvVarsMap {
@@ -75,7 +82,7 @@ func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv 
 			continue
 		}
 		for envVarName, envVarVal := range buildEnv.Build.Variables {
-			envVarsMap[envVarName] = envVarVal //Overrides common env-vars from Spec.Build, if any
+			envVarsMap[envVarName] = envVarVal // Overrides common env-vars from Spec.Build, if any
 		}
 	}
 }
@@ -131,15 +138,30 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 	return "", fmt.Errorf("unknown pipeline type %s", ctx.env.GetRadixPipelineType())
 }
 
+type NewPipelineContextOption func(ctx *pipelineContext)
+
 // NewPipelineContext Create new NewPipelineContext instance
-func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, environment env.Env) models.Context {
+func NewPipelineContext(kubeClient kubernetes.Interface, radixClient radixclient.Interface, tektonClient tektonclient.Interface, environment env.Env, options ...NewPipelineContextOption) models.Context {
 	ownerReference := ownerreferences.GetOwnerReferenceOfJobFromLabels()
-	return &pipelineContext{
+	ctx := &pipelineContext{
 		kubeClient:     kubeClient,
 		radixClient:    radixClient,
 		tektonClient:   tektonClient,
 		env:            environment,
 		hash:           strings.ToLower(utils.RandStringStrSeed(5, environment.GetRadixPipelineJobName())),
 		ownerReference: ownerReference,
+		waiter:         wait.NewPipelineRunsCompletionWaiter(tektonClient),
+	}
+
+	for _, option := range options {
+		option(ctx)
+	}
+
+	return ctx
+}
+
+func WithPipelineRunsWaiter(waiter wait.PipelineRunsCompletionWaiter) NewPipelineContextOption {
+	return func(ctx *pipelineContext) {
+		ctx.waiter = waiter
 	}
 }

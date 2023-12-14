@@ -324,7 +324,7 @@ func createPipelineJobs(appName, jobName string, pipelineType v1.RadixPipelineTy
 }
 
 func prepareTestGetLastSuccessfulEnvironmentDeployCommits(t *testing.T, appName string, scenario scenarioGetLastSuccessfulEnvironmentDeployCommits) Provider {
-	kubeClient, radixClient := test.Setup(t)
+	kubeClient, radixClient, _ := test.Setup()
 	for _, environment := range scenario.environments {
 		environmentNamespace := utils.GetEnvironmentNamespace(appName, environment)
 		_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: environmentNamespace}}, metav1.CreateOptions{})

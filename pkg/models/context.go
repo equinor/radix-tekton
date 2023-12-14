@@ -2,12 +2,13 @@ package models
 
 import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	"github.com/equinor/radix-tekton/pkg/internal/wait"
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 )
 
-//Context of the pipeline
+// Context of the pipeline
 type Context interface {
 	// ProcessRadixAppConfig Load Radix config file to a ConfigMap and create RadixApplication
 	ProcessRadixAppConfig() error
@@ -23,4 +24,6 @@ type Context interface {
 	GetTektonClient() tektonclient.Interface
 	// GetRadixApplication Gets the RadixApplication, loaded from the config-map
 	GetRadixApplication() *v1.RadixApplication
+	// GetPipelineRunsWaiter Returns a waiter that returns when all pipelineruns have completed
+	GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter
 }

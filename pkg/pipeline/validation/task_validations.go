@@ -1,14 +1,22 @@
 package validation
 
 import (
-	stderrors "errors"
+	"errors"
+	"fmt"
+	"slices"
 	"strings"
 
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-tekton/pkg/defaults"
-	"github.com/pkg/errors"
+	"github.com/equinor/radix-tekton/pkg/utils/annotations"
+	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
+)
+
+var (
+	allowedUserAnnotations = []string{annotations.AzureWorkloadIdentitySkipContainers}
+	allowedUserLabels      = []string{labels.AzureWorkloadIdentityUse}
 )
 
 // ValidateTask Validate task
@@ -17,10 +25,12 @@ func ValidateTask(task *pipelinev1.Task) error {
 	errs = append(errs, validateTaskSecretRefDoesNotExist(task)...)
 	errs = append(errs, validateVolumeName(task)...)
 	errs = append(errs, validateTaskSteps(task)...)
-	err := stderrors.Join(errs...)
+	errs = append(errs, validateTaskLabels(task)...)
+	errs = append(errs, validateTaskAnnotations(task)...)
+	err := errors.Join(errs...)
 
 	if err != nil {
-		return errors.WithMessagef(err, "Task %s is invalid", task.GetName())
+		return fmt.Errorf("task %s is invalid: %w", task.GetName(), err)
 	}
 
 	return nil
@@ -48,6 +58,30 @@ func validateVolumeName(task *pipelinev1.Task) []error {
 		}
 
 		errs = append(errs, errorTaskContainsInvalidVolumeName(volume))
+	}
+
+	return errs
+}
+
+func validateTaskLabels(task *pipelinev1.Task) []error {
+	var errs []error
+
+	for key := range task.ObjectMeta.Labels {
+		if !slices.Contains(allowedUserLabels, key) {
+			errs = append(errs, fmt.Errorf("label %s is not allowed: %w", key, ErrIllegalTaskLabel))
+		}
+	}
+
+	return errs
+}
+
+func validateTaskAnnotations(task *pipelinev1.Task) []error {
+	var errs []error
+
+	for key := range task.ObjectMeta.Annotations {
+		if !slices.Contains(allowedUserAnnotations, key) {
+			errs = append(errs, fmt.Errorf("annotation %s is not allowed: %w", key, ErrIllegalTaskAnnotation))
+		}
 	}
 
 	return errs
@@ -102,7 +136,7 @@ func volumeHasHostPath(task *pipelinev1.Task) bool {
 }
 
 func errorTaskContainsInvalidVolumeName(volume corev1.Volume) error {
-	return errors.WithMessagef(ErrRadixVolumeNameNotAllowed, "volume %s has invalid name", volume.Name)
+	return fmt.Errorf("volume %s has invalid name: %w", volume.Name, ErrRadixVolumeNameNotAllowed)
 }
 
 func containerEnvFromSourceHasNonRadixSecretRef(envFromSources []corev1.EnvFromSource) bool {

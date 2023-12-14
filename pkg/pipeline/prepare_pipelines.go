@@ -2,15 +2,16 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -18,6 +19,7 @@ import (
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/pipeline/validation"
+	"github.com/equinor/radix-tekton/pkg/utils/annotations"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
@@ -82,7 +84,7 @@ func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.Environme
 			})
 		}
 	}
-	err := commonErrors.Concat(errs)
+	err := errors.Join(errs...)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +106,7 @@ func (ctx *pipelineContext) prepareBuildDeployPipeline() ([]model.EnvironmentToB
 	if err != nil {
 		return nil, false, err
 	}
-	err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, pipelineTargetCommitHash, commitTags)
+	err = configmap.CreateGitConfigFromGitRepository(env, ctx.kubeClient, pipelineTargetCommitHash, commitTags, ctx.ownerReference)
 	if err != nil {
 		return nil, false, err
 	}
@@ -225,14 +227,35 @@ func (ctx *pipelineContext) pipelineFileExists(pipelineFilePath string) error {
 	return err
 }
 
-func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, timestamp string) map[string]pipelinev1.Task {
+func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, timestamp string) (map[string]pipelinev1.Task, error) {
+	var errs []error
 	taskMap := make(map[string]pipelinev1.Task)
 	for _, task := range tasks {
 		originalTaskName := task.Name
-		taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
-		task.ObjectMeta.Name = taskName
-		task.ObjectMeta.Annotations = map[string]string{defaults.PipelineTaskNameAnnotation: originalTaskName}
-		task.ObjectMeta.Labels = labels.GetLabelsForEnvironment(ctx, envName)
+		task.ObjectMeta.Name = fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
+		if task.ObjectMeta.Labels == nil {
+			task.ObjectMeta.Labels = map[string]string{}
+		}
+		if task.ObjectMeta.Annotations == nil {
+			task.ObjectMeta.Annotations = map[string]string{}
+		}
+
+		for k, v := range labels.GetLabelsForEnvironment(ctx, envName) {
+			task.ObjectMeta.Labels[k] = v
+		}
+
+		if val, ok := task.ObjectMeta.Labels[labels.AzureWorkloadIdentityUse]; ok {
+			if val != "true" {
+				errs = append(errs, fmt.Errorf("label %s is invalid, %s must be lowercase true in task %s: %w", labels.AzureWorkloadIdentityUse, val, originalTaskName, validation.ErrInvalidTaskLabelValue))
+			}
+
+			err := sanitizeAzureSkipContainersAnnotation(&task)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to sanitize task %s: %w", originalTaskName, err))
+			}
+		}
+
+		task.ObjectMeta.Annotations[defaults.PipelineTaskNameAnnotation] = originalTaskName
 		if ctx.ownerReference != nil {
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 		}
@@ -240,7 +263,37 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 		taskMap[originalTaskName] = task
 		log.Debugf("created the task %s", task.Name)
 	}
-	return taskMap
+	return taskMap, errors.Join(errs...)
+}
+
+func sanitizeAzureSkipContainersAnnotation(task *pipelinev1.Task) error {
+	skipSteps := strings.Split(task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentitySkipContainers], ";")
+
+	var errs []error
+	for _, step := range skipSteps {
+		sanitizedSkipStepName := strings.ToLower(strings.TrimSpace(step))
+		if sanitizedSkipStepName == "" {
+			continue
+		}
+
+		containsStep := slices.ContainsFunc(task.Spec.Steps, func(s pipelinev1.Step) bool {
+			return strings.ToLower(strings.TrimSpace(s.Name)) == sanitizedSkipStepName
+		})
+		if !containsStep {
+			errs = append(errs, fmt.Errorf("step %s is not defined: %w", sanitizedSkipStepName, validation.ErrSkipStepNotFound))
+		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	skipContainers := []string{"place-scripts", "prepare"}
+	for _, stepName := range skipSteps {
+		skipContainers = append(skipContainers, "step-"+stepName)
+	}
+
+	task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentitySkipContainers] = strings.Join(skipContainers, ";")
+	return nil
 }
 
 func ensureCorrectSecureContext(task *pipelinev1.Task) {
@@ -301,7 +354,7 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 		validateTaskErrors = append(validateTaskErrors, validation.ValidateTask(&task))
 		tasks = append(tasks, task)
 	}
-	return tasks, commonErrors.Concat(validateTaskErrors)
+	return tasks, errors.Join(validateTaskErrors...)
 }
 
 func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, error) {
@@ -315,10 +368,14 @@ func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, er
 }
 
 func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.Pipeline, tasks []pipelinev1.Task, timestamp string) error {
-	taskMap := ctx.buildTasks(envName, tasks, timestamp)
 
 	originalPipelineName := pipeline.Name
 	var errs []error
+	taskMap, err := ctx.buildTasks(envName, tasks, timestamp)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %w", originalPipelineName, err))
+	}
+
 	for i, pipelineSpecTask := range pipeline.Spec.Tasks {
 		task, ok := taskMap[pipelineSpecTask.TaskRef.Name]
 		if !ok {
@@ -328,7 +385,7 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 		pipeline.Spec.Tasks[i].TaskRef = &pipelinev1.TaskRef{Name: task.Name}
 	}
 	if len(errs) > 0 {
-		return commonErrors.Concat(errs)
+		return errors.Join(errs...)
 	}
 	pipelineName := fmt.Sprintf("radix-pipeline-%s-%s-%s-%s", getShortName(envName), getShortName(originalPipelineName), timestamp, ctx.hash)
 	pipeline.ObjectMeta.Name = pipelineName
@@ -340,7 +397,7 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 	if ctx.ownerReference != nil {
 		pipeline.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 	}
-	err := ctx.createTasks(taskMap)
+	err = ctx.createTasks(taskMap)
 	if err != nil {
 		return fmt.Errorf("tasks have not been created. Error: %w", err)
 	}
@@ -364,7 +421,7 @@ func (ctx *pipelineContext) createTasks(taskMap map[string]pipelinev1.Task) erro
 			errs = append(errs, fmt.Errorf("task %s has not been created. Error: %w", task.Name, err))
 		}
 	}
-	return commonErrors.Concat(errs)
+	return errors.Join(errs...)
 }
 
 func getShortName(name string) string {

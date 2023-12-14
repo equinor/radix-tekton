@@ -25,20 +25,25 @@ func CreateFromRadixConfigFile(env env.Env) (string, error) {
 }
 
 // CreateGitConfigFromGitRepository create configmap with git repository information
-func CreateGitConfigFromGitRepository(env env.Env, kubeClient kubernetes.Interface, targetCommitHash, gitTags string) error {
+func CreateGitConfigFromGitRepository(env env.Env, kubeClient kubernetes.Interface, targetCommitHash, gitTags string, ownerReference *metav1.OwnerReference) error {
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      env.GetGitConfigMapName(),
+			Namespace: env.GetAppNamespace(),
+			Labels:    map[string]string{kube.RadixJobNameLabel: env.GetRadixPipelineJobName()},
+		},
+		Data: map[string]string{
+			defaults.RadixGitCommitHashKey: targetCommitHash,
+			defaults.RadixGitTagsKey:       gitTags,
+		},
+	}
+
+	if ownerReference != nil {
+		cm.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerReference}
+	}
 	_, err := kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
 		context.Background(),
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      env.GetGitConfigMapName(),
-				Namespace: env.GetAppNamespace(),
-				Labels:    map[string]string{kube.RadixJobNameLabel: env.GetRadixPipelineJobName()},
-			},
-			Data: map[string]string{
-				defaults.RadixGitCommitHashKey: targetCommitHash,
-				defaults.RadixGitTagsKey:       gitTags,
-			},
-		},
+		&cm,
 		metav1.CreateOptions{})
 
 	if err != nil {

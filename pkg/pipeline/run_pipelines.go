@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
-	commonErrors "github.com/equinor/radix-common/utils/errors"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
-	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
+	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
@@ -19,17 +17,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
-	tektonInformerFactory "github.com/tektoncd/pipeline/pkg/client/informers/externalversions"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
-	knativeApis "knative.dev/pkg/apis"
-	knative "knative.dev/pkg/apis/duck/v1"
 )
 
 // RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
 func (ctx *pipelineContext) RunPipelinesJob() error {
-	if ctx.GetEnv().GetRadixPipelineType() == v1.Build {
+	if ctx.GetEnv().GetRadixPipelineType() == radixv1.Build {
 		log.Infof("pipeline type is build, skip Tekton pipeline run.")
 		return nil
 	}
@@ -56,7 +50,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 	}
 
 	tektonPipelineBranch := ctx.env.GetBranch()
-	if ctx.GetEnv().GetRadixPipelineType() == v1.Deploy {
+	if ctx.GetEnv().GetRadixPipelineType() == radixv1.Deploy {
 		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.env.GetRadixDeployToEnvironment())
 		tektonPipelineBranch = re.Build.From
 	}
@@ -68,7 +62,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return fmt.Errorf("failed to run pipelines: %w", err)
 	}
 
-	err = ctx.WaitForCompletionOf(pipelineRunMap)
+	err = ctx.GetPipelineRunsWaiter().Wait(pipelineRunMap, ctx.env)
 	if err != nil {
 		return fmt.Errorf("failed tekton pipelines for the application %s, for environment(s) %s. %w",
 			ctx.env.GetAppName(),
@@ -98,7 +92,7 @@ func (ctx *pipelineContext) runPipelines(pipelines []pipelinev1.Pipeline, namesp
 		}
 		pipelineRunMap[createdPipelineRun.GetName()] = createdPipelineRun
 	}
-	return pipelineRunMap, commonErrors.Concat(errs)
+	return pipelineRunMap, errors.Join(errs...)
 }
 
 func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *pipelinev1.Pipeline, timestamp string) (*pipelinev1.PipelineRun, error) {
@@ -134,7 +128,8 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targ
 			PipelineRef: &pipelinev1.PipelineRef{Name: pipeline.GetName()},
 			Params:      pipelineParams,
 			TaskRunTemplate: pipelinev1.PipelineTaskRunTemplate{
-				PodTemplate: ctx.buildPipelineRunPodTemplate(),
+				PodTemplate:        ctx.buildPipelineRunPodTemplate(),
+				ServiceAccountName: utils.GetSubPipelineServiceAccountName(targetEnv),
 			},
 		},
 	}
@@ -194,91 +189,4 @@ func getPipelineParamSpecsMap(pipeline *pipelinev1.Pipeline) map[string]pipeline
 		paramSpecMap[paramSpec.Name] = paramSpec
 	}
 	return paramSpecMap
-}
-
-// WaitForCompletionOf Will wait for job to complete
-func (ctx *pipelineContext) WaitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun) error {
-	stop := make(chan struct{})
-	defer close(stop)
-
-	if len(pipelineRuns) == 0 {
-		return nil
-	}
-
-	errChan := make(chan error)
-
-	kubeInformerFactory := tektonInformerFactory.NewSharedInformerFactoryWithOptions(ctx.tektonClient, time.Second*5, tektonInformerFactory.WithNamespace(ctx.GetEnv().GetAppNamespace()))
-	genericInformer, err := kubeInformerFactory.ForResource(pipelinev1.SchemeGroupVersion.WithResource("pipelineruns"))
-	if err != nil {
-		return err
-	}
-	informer := genericInformer.Informer()
-	_, _ = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
-			run, success := cur.(*pipelinev1.PipelineRun)
-			if !success {
-				return
-			}
-			pipelineRun, ok := pipelineRuns[run.GetName()]
-			if !ok {
-				return
-			}
-			if pipelineRun.GetName() == run.GetName() && pipelineRun.GetNamespace() == run.GetNamespace() && run.Status.PipelineRunStatusFields.CompletionTime != nil {
-				conditions := sortByTimestampDesc(run.Status.Conditions)
-				if len(conditions) == 0 {
-					return
-				}
-				delete(pipelineRuns, run.GetName())
-				lastCondition := conditions[0]
-				if strings.EqualFold(lastCondition.Reason, "Failed") {
-					errChan <- errors.New("PipelineRun failed")
-					return
-				}
-				switch {
-				case lastCondition.IsTrue():
-					log.Infof("pipelineRun completed: %s", lastCondition.Message)
-				default:
-					log.Errorf("pipelineRun status reason %s. %s", lastCondition.Reason,
-						lastCondition.Message)
-				}
-				if len(pipelineRuns) == 0 {
-					errChan <- nil
-				}
-			} else {
-				log.Debugf("Ongoing - PipelineRun has not completed yet")
-			}
-		},
-		DeleteFunc: func(old interface{}) {
-			run, success := old.(*pipelinev1.PipelineRun)
-			if !success {
-				return
-			}
-			pipelineRun, ok := pipelineRuns[run.GetName()]
-			if !ok {
-				return
-			}
-			if pipelineRun.GetNamespace() == run.GetNamespace() {
-				delete(pipelineRuns, run.GetName())
-				errChan <- errors.New("PipelineRun failed - Job deleted")
-			}
-		},
-	})
-	go informer.Run(stop)
-	if !cache.WaitForCacheSync(stop, informer.HasSynced) {
-		errChan <- fmt.Errorf("timed out waiting for caches to sync")
-	}
-
-	err = <-errChan
-	return err
-}
-
-func sortByTimestampDesc(conditions knative.Conditions) knative.Conditions {
-	sort.Slice(conditions, func(i, j int) bool {
-		return isCondition1BeforeCondition2(&conditions[j], &conditions[i])
-	})
-	return conditions
-}
-
-func isCondition1BeforeCondition2(c1 *knativeApis.Condition, c2 *knativeApis.Condition) bool {
-	return c1.LastTransitionTime.Inner.Before(&c2.LastTransitionTime.Inner)
 }
