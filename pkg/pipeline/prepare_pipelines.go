@@ -245,7 +245,11 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 			task.ObjectMeta.Labels[k] = v
 		}
 
-		if val, ok := task.ObjectMeta.Labels[labels.AzureWorkloadIdentityUse]; ok && val == "true" {
+		if val, ok := task.ObjectMeta.Labels[labels.AzureWorkloadIdentityUse]; ok {
+			if val != "true" {
+				errs = append(errs, fmt.Errorf("label %s is invalid, %s must be lowercase true in task %s: %w", labels.AzureWorkloadIdentityUse, val, originalTaskName, validation.ErrInvalidTaskLabelValue))
+			}
+
 			err := sanitizeAzureSkipContainersAnnotation(&task)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("failed to sanitize task %s: %w", originalTaskName, err))

@@ -596,6 +596,27 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 			},
 			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {},
 		},
+		{
+			name: "Test illegal azure WI label value in task",
+			args: args{
+				envName: envDev,
+				pipeline: getTestPipeline(func(pipeline *pipelinev1.Pipeline) {
+					pipeline.ObjectMeta.Name = "pipeline1"
+					pipeline.Spec.Tasks = append(pipeline.Spec.Tasks, pipelinev1.PipelineTask{Name: "identity", TaskRef: &pipelinev1.TaskRef{Name: "task1"}})
+				}),
+				tasks: []pipelinev1.Task{{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "task1",
+						Labels: map[string]string{labels.AzureWorkloadIdentityUse: "True"}, // must be lowercase 'true'
+					},
+					Spec: pipelinev1.TaskSpec{Steps: []pipelinev1.Step{}},
+				}},
+			},
+			wantErr: func(t *testing.T, err error) {
+				assert.ErrorIs(t, err, validation.ErrInvalidTaskLabelValue)
+			},
+			assertScenario: func(t *testing.T, ctx *pipelineContext, pipelineName string) {},
+		},
 	}
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
