@@ -11,7 +11,7 @@ import (
 
 func Setup() (kubernetes.Interface, radixclient.Interface, tektonclient.Interface) {
 	kubeclient := kubeclientfake.NewSimpleClientset()
-	rxclient := radixclientfake.NewSimpleClientset()
-	tknclient := tektonclientfake.NewSimpleClientset()
-	return kubeclient, rxclient, tknclient
+	radixClient := radixclientfake.NewSimpleClientset()
+	tektonClient := tektonclientfake.NewSimpleClientset()
+	return kubeclient, radixClient, tektonClient
 }
