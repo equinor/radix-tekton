@@ -72,7 +72,7 @@ func waitForCompletionOf(tektonClient tektonclient.Interface, env env.Env, pipel
 					return
 				}
 				switch {
-				case lastCondition.IsTrue():
+				case lastCondition.Reason == pipelinev1.PipelineRunReasonCompleted.String():
 					log.Infof("pipelineRun completed: %s", lastCondition.Message)
 				default:
 					log.Errorf("pipelineRun status reason %s. %s", lastCondition.Reason,
