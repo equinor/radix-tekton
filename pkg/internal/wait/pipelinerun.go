@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/equinor/radix-tekton/pkg/models/env"
@@ -68,16 +67,15 @@ func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tekton
 				}
 				delete(pipelineRuns, run.GetName())
 				lastCondition := conditions[0]
-				if strings.EqualFold(lastCondition.Reason, "Failed") {
-					errChan <- errors.New("PipelineRun failed")
-					return
-				}
+
 				switch {
 				case lastCondition.Reason == pipelinev1.PipelineRunReasonCompleted.String():
 					log.Infof("pipelineRun completed: %s", lastCondition.Message)
+				case lastCondition.Reason == pipelinev1.PipelineRunReasonFailed.String():
+					errChan <- fmt.Errorf("PipelineRun failed: %s", lastCondition.Message)
+					return
 				default:
-					log.Errorf("pipelineRun status reason %s. %s", lastCondition.Reason,
-						lastCondition.Message)
+					log.Errorf("pipelineRun status %s: %s", lastCondition.Reason, lastCondition.Message)
 				}
 				if len(pipelineRuns) == 0 {
 					errChan <- nil
