@@ -47,13 +47,14 @@ func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tekton
 	kubeInformerFactory := tektonInformerFactory.NewSharedInformerFactoryWithOptions(tektonClient, time.Second*5, tektonInformerFactory.WithNamespace(env.GetAppNamespace()))
 	genericInformer, err := kubeInformerFactory.ForResource(pipelinev1.SchemeGroupVersion.WithResource("pipelineruns"))
 	if err != nil {
-		return err
+		return fmt.Errorf("waitForCompletionOf failed to create informer: %w", err)
 	}
 	informer := genericInformer.Informer()
-	_, _ = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err = informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(old, cur interface{}) {
 			run, success := cur.(*pipelinev1.PipelineRun)
 			if !success {
+				errChan <- errors.New("updatefunc conversion failed")
 				return
 			}
 			pipelineRun, ok := pipelineRuns[run.GetName()]
@@ -88,6 +89,7 @@ func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tekton
 		DeleteFunc: func(old interface{}) {
 			run, success := old.(*pipelinev1.PipelineRun)
 			if !success {
+				errChan <- errors.New("deletefunc conversion failed")
 				return
 			}
 			pipelineRun, ok := pipelineRuns[run.GetName()]
@@ -96,17 +98,21 @@ func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tekton
 			}
 			if pipelineRun.GetNamespace() == run.GetNamespace() {
 				delete(pipelineRuns, run.GetName())
-				errChan <- errors.New("PipelineRun failed - Job deleted")
+				errChan <- errors.New("pipelineRun failed - Job deleted")
 			}
 		},
 	})
+	if err != nil {
+		return fmt.Errorf("waitForCompletionOf failed to create event handler: %w", err)
+	}
+
 	go informer.Run(stop)
 	if !cache.WaitForCacheSync(stop, informer.HasSynced) {
 		errChan <- fmt.Errorf("timed out waiting for caches to sync")
 	}
 
 	err = <-errChan
-	return err
+	return fmt.Errorf("waitForCompletionOf failed during wait: %w", err)
 }
 
 func sortByTimestampDesc(conditions knative.Conditions) knative.Conditions {
