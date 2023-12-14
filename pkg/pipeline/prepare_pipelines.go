@@ -233,7 +233,7 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 	taskMap := make(map[string]pipelinev1.Task)
 	for _, task := range tasks {
 		originalTaskName := task.Name
-		taskName := fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
+		task.ObjectMeta.Name = fmt.Sprintf("radix-task-%s-%s-%s-%s", getShortName(envName), getShortName(originalTaskName), timestamp, ctx.hash)
 		if task.ObjectMeta.Labels == nil {
 			task.ObjectMeta.Labels = map[string]string{}
 		}
@@ -246,7 +246,10 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 		}
 
 		if val, ok := task.ObjectMeta.Labels[labels.AzureWorkloadIdentityUse]; ok && val == "true" {
-			errs = append(errs, sanitizeAzureSkipContainersAnnotation(&task))
+			err := sanitizeAzureSkipContainersAnnotation(&task)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to sanitize task %s: %w", originalTaskName, err))
+			}
 		}
 
 		task.ObjectMeta.Annotations[defaults.PipelineTaskNameAnnotation] = originalTaskName
@@ -254,8 +257,6 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 			task.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
 		}
 		ensureCorrectSecureContext(&task)
-
-		task.ObjectMeta.Name = taskName
 		taskMap[originalTaskName] = task
 		log.Debugf("created the task %s", task.Name)
 	}
@@ -267,11 +268,16 @@ func sanitizeAzureSkipContainersAnnotation(task *pipelinev1.Task) error {
 
 	var errs []error
 	for _, step := range skipSteps {
+		sanitizedSkipStepName := strings.ToLower(strings.TrimSpace(step))
+		if sanitizedSkipStepName == "" {
+			continue
+		}
+
 		containsStep := slices.ContainsFunc(task.Spec.Steps, func(s pipelinev1.Step) bool {
-			return s.Name == step
+			return strings.ToLower(strings.TrimSpace(s.Name)) == sanitizedSkipStepName
 		})
 		if !containsStep {
-			errs = append(errs, fmt.Errorf("step '%s' is not defined in task '%s': %w", step, task.Name, validation.ErrSkipStepNotFound))
+			errs = append(errs, fmt.Errorf("step %s is not defined in task: %w", sanitizedSkipStepName, validation.ErrSkipStepNotFound))
 		}
 	}
 
