@@ -75,7 +75,7 @@ func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tekton
 					errChan <- fmt.Errorf("PipelineRun failed: %s", lastCondition.Message)
 					return
 				default:
-					log.Errorf("pipelineRun status %s: %s", lastCondition.Reason, lastCondition.Message)
+					log.Infof("pipelineRun status %s: %s", lastCondition.Reason, lastCondition.Message)
 				}
 				if len(pipelineRuns) == 0 {
 					errChan <- nil
@@ -110,7 +110,10 @@ func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tekton
 	}
 
 	err = <-errChan
-	return fmt.Errorf("waitForCompletionOf failed during wait: %w", err)
+	if err != nil {
+		return fmt.Errorf("waitForCompletionOf failed during wait: %w", err)
+	}
+	return nil
 }
 
 func sortByTimestampDesc(conditions knative.Conditions) knative.Conditions {
