@@ -12,7 +12,6 @@ import (
 	"time"
 
 	commonUtils "github.com/equinor/radix-common/utils"
-	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-common/utils/maps"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
@@ -284,14 +283,17 @@ func sanitizeAzureSkipContainersAnnotation(task *pipelinev1.Task) error {
 			errs = append(errs, fmt.Errorf("step %s is not defined: %w", sanitizedSkipStepName, validation.ErrSkipStepNotFound))
 		}
 	}
-
-	SkipContainers := []string{"place-scripts", "prepare"}
-	for _, stepName := range skipSteps {
-		SkipContainers = append(SkipContainers, "step-"+stepName)
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 
-	task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentitySkipContainers] = strings.Join(SkipContainers, ";")
-	return errors.Join(errs...)
+	skipContainers := []string{"place-scripts", "prepare"}
+	for _, stepName := range skipSteps {
+		skipContainers = append(skipContainers, "step-"+stepName)
+	}
+
+	task.ObjectMeta.Annotations[annotations.AzureWorkloadIdentitySkipContainers] = strings.Join(skipContainers, ";")
+	return nil
 }
 
 func ensureCorrectSecureContext(task *pipelinev1.Task) {
@@ -352,7 +354,7 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 		validateTaskErrors = append(validateTaskErrors, validation.ValidateTask(&task))
 		tasks = append(tasks, task)
 	}
-	return tasks, commonErrors.Concat(validateTaskErrors)
+	return tasks, errors.Join(validateTaskErrors...)
 }
 
 func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, error) {
@@ -419,7 +421,7 @@ func (ctx *pipelineContext) createTasks(taskMap map[string]pipelinev1.Task) erro
 			errs = append(errs, fmt.Errorf("task %s has not been created. Error: %w", task.Name, err))
 		}
 	}
-	return commonErrors.Concat(errs)
+	return errors.Join(errs...)
 }
 
 func getShortName(name string) string {

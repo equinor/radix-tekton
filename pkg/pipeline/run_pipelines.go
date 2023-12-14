@@ -2,11 +2,11 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	commonErrors "github.com/equinor/radix-common/utils/errors"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -92,7 +92,7 @@ func (ctx *pipelineContext) runPipelines(pipelines []pipelinev1.Pipeline, namesp
 		}
 		pipelineRunMap[createdPipelineRun.GetName()] = createdPipelineRun
 	}
-	return pipelineRunMap, commonErrors.Concat(errs)
+	return pipelineRunMap, errors.Join(errs...)
 }
 
 func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *pipelinev1.Pipeline, timestamp string) (*pipelinev1.PipelineRun, error) {

@@ -1,7 +1,7 @@
 package validation
 
 import (
-	stderrors "errors"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -10,7 +10,6 @@ import (
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/utils/annotations"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
-	"github.com/pkg/errors"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -28,7 +27,7 @@ func ValidateTask(task *pipelinev1.Task) error {
 	errs = append(errs, validateTaskSteps(task)...)
 	errs = append(errs, validateTaskLabels(task)...)
 	errs = append(errs, validateTaskAnnotations(task)...)
-	err := stderrors.Join(errs...)
+	err := errors.Join(errs...)
 
 	if err != nil {
 		return fmt.Errorf("task %s is invalid: %w", task.GetName(), err)
@@ -137,7 +136,7 @@ func volumeHasHostPath(task *pipelinev1.Task) bool {
 }
 
 func errorTaskContainsInvalidVolumeName(volume corev1.Volume) error {
-	return errors.WithMessagef(ErrRadixVolumeNameNotAllowed, "volume %s has invalid name", volume.Name)
+	return fmt.Errorf("volume %s has invalid name: %w", volume.Name, ErrRadixVolumeNameNotAllowed)
 }
 
 func containerEnvFromSourceHasNonRadixSecretRef(envFromSources []corev1.EnvFromSource) bool {

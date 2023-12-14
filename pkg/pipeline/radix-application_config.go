@@ -2,10 +2,10 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
-	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -111,7 +111,7 @@ func (ctx *pipelineContext) setTargetEnvironmentsForPromote() error {
 	}
 	if len(errs) > 0 {
 		log.Infoln("pipeline type: promote")
-		return commonErrors.Concat(errs)
+		return errors.Join(errs...)
 	}
 	ctx.targetEnvironments = map[string]bool{ctx.env.GetRadixDeployToEnvironment(): true} // run Tekton pipelines for the promote target environment
 	log.Infof("promote the deployment %s from the environment %s to %s", ctx.env.GetRadixPromoteDeployment(), ctx.env.GetRadixPromoteFromEnvironment(), ctx.env.GetRadixDeployToEnvironment())
