@@ -39,8 +39,7 @@ func unzip(archivePath string) error {
 		}
 		if f.FileInfo().IsDir() {
 			fmt.Println("creating directory...")
-			err = os.MkdirAll(filePath, os.ModePerm)
-			if err != nil {
+			if err = os.MkdirAll(filePath, os.ModePerm); err != nil {
 				return err
 			}
 
