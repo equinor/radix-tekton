@@ -79,9 +79,9 @@ func validateTaskLabels(task *pipelinev1.Task) []error {
 func validateTaskAnnotations(task *pipelinev1.Task) []error {
 	var errs []error
 
-	for key, value := range task.ObjectMeta.Annotations {
+	for key, _ := range task.ObjectMeta.Annotations {
 		if !slices.Contains(allowedUserAnnotations, key) {
-			errs = append(errs, fmt.Errorf("annotation '%s=%s' is not allowed in task '%s': %w", key, value, task.Name, ErrIllegalTaskAnnotation))
+			errs = append(errs, fmt.Errorf("annotation %s is not allowed: %w", key, ErrIllegalTaskAnnotation))
 		}
 	}
 
