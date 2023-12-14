@@ -62,7 +62,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return fmt.Errorf("failed to run pipelines: %w", err)
 	}
 
-	err = ctx.GetPipelineRunsWaiter().Wait(ctx.env, pipelineRunMap)
+	err = ctx.GetPipelineRunsWaiter().Wait(pipelineRunMap, ctx.env)
 	if err != nil {
 		return fmt.Errorf("failed tekton pipelines for the application %s, for environment(s) %s. %w",
 			ctx.env.GetAppName(),

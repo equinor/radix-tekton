@@ -36,15 +36,15 @@ func (m *MockPipelineRunsCompletionWaiter) EXPECT() *MockPipelineRunsCompletionW
 }
 
 // Wait mocks base method.
-func (m *MockPipelineRunsCompletionWaiter) Wait(env env.Env, pipelineRuns map[string]*v1.PipelineRun) error {
+func (m *MockPipelineRunsCompletionWaiter) Wait(pipelineRuns map[string]*v1.PipelineRun, env env.Env) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Wait", env, pipelineRuns)
+	ret := m.ctrl.Call(m, "Wait", pipelineRuns, env)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Wait indicates an expected call of Wait.
-func (mr *MockPipelineRunsCompletionWaiterMockRecorder) Wait(env, pipelineRuns interface{}) *gomock.Call {
+func (mr *MockPipelineRunsCompletionWaiterMockRecorder) Wait(pipelineRuns, env interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Wait", reflect.TypeOf((*MockPipelineRunsCompletionWaiter)(nil).Wait), env, pipelineRuns)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Wait", reflect.TypeOf((*MockPipelineRunsCompletionWaiter)(nil).Wait), pipelineRuns, env)
 }

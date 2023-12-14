@@ -18,23 +18,23 @@ import (
 )
 
 type PipelineRunsCompletionWaiter interface {
-	Wait(env env.Env, pipelineRuns map[string]*pipelinev1.PipelineRun) error
+	Wait(pipelineRuns map[string]*pipelinev1.PipelineRun, env env.Env) error
 }
 
 func NewPipelineRunsCompletionWaiter(tektonClient tektonclient.Interface) PipelineRunsCompletionWaiter {
-	return PipelineRunsCompletionWaiterFunc(func(env env.Env, pipelineRuns map[string]*pipelinev1.PipelineRun) error {
-		return waitForCompletionOf(tektonClient, env, pipelineRuns)
+	return PipelineRunsCompletionWaiterFunc(func(pipelineRuns map[string]*pipelinev1.PipelineRun, env env.Env) error {
+		return waitForCompletionOf(pipelineRuns, tektonClient, env)
 	})
 }
 
-type PipelineRunsCompletionWaiterFunc func(env env.Env, pipelineRuns map[string]*pipelinev1.PipelineRun) error
+type PipelineRunsCompletionWaiterFunc func(pipelineRuns map[string]*pipelinev1.PipelineRun, env env.Env) error
 
-func (f PipelineRunsCompletionWaiterFunc) Wait(env env.Env, pipelineRuns map[string]*pipelinev1.PipelineRun) error {
-	return f(env, pipelineRuns)
+func (f PipelineRunsCompletionWaiterFunc) Wait(pipelineRuns map[string]*pipelinev1.PipelineRun, env env.Env) error {
+	return f(pipelineRuns, env)
 }
 
 // WaitForCompletionOf Will wait for job to complete
-func waitForCompletionOf(tektonClient tektonclient.Interface, env env.Env, pipelineRuns map[string]*pipelinev1.PipelineRun) error {
+func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tektonClient tektonclient.Interface, env env.Env) error {
 	stop := make(chan struct{})
 	defer close(stop)
 
