@@ -1,8 +1,6 @@
 package env
 
 import (
-	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/equinor/radix-common/utils/maps"
@@ -12,6 +10,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	tektonDefaults "github.com/equinor/radix-tekton/pkg/defaults"
+	"github.com/equinor/radix-tekton/pkg/models/env/internal"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -106,20 +105,6 @@ func (e *env) GetDNSConfig() *dnsalias.DNSConfig {
 	return e.dnsConfig
 }
 
-func validateReservedDNSAliases(dnsConfig *dnsalias.DNSConfig) {
-	var errs []error
-	if len(dnsConfig.ReservedAppDNSAliases) == 0 {
-		errs = append(errs, fmt.Errorf("missing DNS aliases, reserved for Radix platform Radix application"))
-	}
-	if len(dnsConfig.ReservedDNSAliases) == 0 {
-		errs = append(errs, fmt.Errorf("missing DNS aliases, reserved for Radix platform services"))
-	}
-	err := errors.Join(errs...)
-	if err != nil {
-		panic(err)
-	}
-}
-
 // GetLogLevel Log level: ERROR, INFO (default), DEBUG
 func (e *env) GetLogLevel() log.Level {
 	switch viper.GetString(defaults.LogLevel) {
@@ -172,6 +157,8 @@ func NewEnvironment() Env {
 		ReservedAppDNSAliases: maps.FromString(viper.GetString(defaults.RadixReservedAppDNSAliasesEnvironmentVariable)),
 		ReservedDNSAliases:    strings.Split(viper.GetString(defaults.RadixReservedDNSAliasesEnvironmentVariable), ","),
 	}
-	validateReservedDNSAliases(dnsConfig)
+	if err := internal.ValidateReservedDNSAliases(dnsConfig); err != nil {
+		panic(err)
+	}
 	return &env{dnsConfig: dnsConfig}
 }
