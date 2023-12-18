@@ -1,6 +1,12 @@
 package env
 
 import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
@@ -11,6 +17,7 @@ import (
 )
 
 type env struct {
+	dnsConfig *dnsalias.DNSConfig
 }
 
 func (e *env) GetSourceDeploymentGitCommitHash() string {
@@ -94,6 +101,25 @@ func (e *env) GetRadixDeployToEnvironment() string {
 	return viper.GetString(defaults.RadixPromoteToEnvironmentEnvironmentVariable)
 }
 
+// GetDNSConfig The list of DNS aliases, reserved for Radix platform Radix application and services
+func (e *env) GetDNSConfig() *dnsalias.DNSConfig {
+	return e.dnsConfig
+}
+
+func validateReservedDNSAliases(dnsConfig *dnsalias.DNSConfig) {
+	var errs []error
+	if len(dnsConfig.ReservedAppDNSAliases) == 0 {
+		errs = append(errs, fmt.Errorf("missing DNS aliases, reserved for Radix platform Radix application"))
+	}
+	if len(dnsConfig.ReservedDNSAliases) == 0 {
+		errs = append(errs, fmt.Errorf("missing DNS aliases, reserved for Radix platform services"))
+	}
+	err := errors.Join(errs...)
+	if err != nil {
+		panic(err)
+	}
+}
+
 // GetLogLevel Log level: ERROR, INFO (default), DEBUG
 func (e *env) GetLogLevel() log.Level {
 	switch viper.GetString(defaults.LogLevel) {
@@ -136,10 +162,16 @@ type Env interface {
 	GetGitRepositoryWorkspace() string
 	GetSourceDeploymentGitCommitHash() string
 	GetSourceDeploymentGitBranch() string
+	GetDNSConfig() *dnsalias.DNSConfig
 }
 
 // NewEnvironment New instance of an Environment for the pipeline
 func NewEnvironment() Env {
 	viper.AutomaticEnv()
-	return &env{}
+	dnsConfig := &dnsalias.DNSConfig{
+		ReservedAppDNSAliases: maps.FromString(viper.GetString(defaults.RadixReservedAppDNSAliasesEnvironmentVariable)),
+		ReservedDNSAliases:    strings.Split(viper.GetString(defaults.RadixReservedDNSAliasesEnvironmentVariable), ","),
+	}
+	validateReservedDNSAliases(dnsConfig)
+	return &env{dnsConfig: dnsConfig}
 }
