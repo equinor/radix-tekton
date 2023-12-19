@@ -115,6 +115,8 @@ github.com/equinor/radix-common v1.7.0 h1:DJHoBZTNzqEHw9faIWrSPGhPKEew/HBWc9MLCe
 github.com/equinor/radix-common v1.7.0/go.mod h1:9hHvudaiqmoIjCqKlsW14jMj8qU/b/wMXUwkffd9MUw=
 github.com/equinor/radix-operator v1.46.0 h1:UF8WZsRLAFmMMYcaUvx/t9lvjnJXdPp0CCbRZAKCsOQ=
 github.com/equinor/radix-operator v1.46.0/go.mod h1:ygJYuO8paAlRPEvCqwAqXCRGe7WvRrzX1yAjULAH2DA=
+github.com/equinor/radix-operator v1.47.0 h1:VjmHvp+4SPqKK/tJY0Hg4MV8nVI2IB5Jcbvg0Cbm5uQ=
+github.com/equinor/radix-operator v1.47.0/go.mod h1:ygJYuO8paAlRPEvCqwAqXCRGe7WvRrzX1yAjULAH2DA=
 github.com/evanphx/json-patch v5.6.0+incompatible h1:jBYDEEiFBPxA0v50tFdvOzQQTCvpL6mnFh5mB2/l16U=
 github.com/evanphx/json-patch v5.6.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.6.0 h1:b91NhWfaz02IuVxO9faSllyAtNXHMPkC5J8sJCLunww=

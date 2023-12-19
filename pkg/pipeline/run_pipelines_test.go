@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
 	"github.com/equinor/radix-tekton/pkg/internal/wait"
@@ -50,6 +51,7 @@ func Test_RunPipeline_Has_ServiceAccount(t *testing.T) {
 	mockEnv.EXPECT().GetRadixPipelineType().Return(radixv1.Deploy).AnyTimes()
 	mockEnv.EXPECT().GetRadixConfigMapName().Return(radixConfigMapName).AnyTimes()
 	mockEnv.EXPECT().GetRadixDeployToEnvironment().Return("dev").AnyTimes()
+	mockEnv.EXPECT().GetDNSConfig().Return(&dnsalias.DNSConfig{}).AnyTimes()
 	kubeclient, rxclient, tknclient := test.Setup()
 	waiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 	waiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
