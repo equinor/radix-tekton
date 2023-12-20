@@ -7,6 +7,7 @@ package env
 import (
 	reflect "reflect"
 
+	dnsalias "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "github.com/golang/mock/gomock"
 	logrus "github.com/sirupsen/logrus"
@@ -75,6 +76,20 @@ func (m *MockEnv) GetBranch() string {
 func (mr *MockEnvMockRecorder) GetBranch() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBranch", reflect.TypeOf((*MockEnv)(nil).GetBranch))
+}
+
+// GetDNSConfig mocks base method.
+func (m *MockEnv) GetDNSConfig() *dnsalias.DNSConfig {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDNSConfig")
+	ret0, _ := ret[0].(*dnsalias.DNSConfig)
+	return ret0
+}
+
+// GetDNSConfig indicates an expected call of GetDNSConfig.
+func (mr *MockEnvMockRecorder) GetDNSConfig() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDNSConfig", reflect.TypeOf((*MockEnv)(nil).GetDNSConfig))
 }
 
 // GetGitConfigMapName mocks base method.

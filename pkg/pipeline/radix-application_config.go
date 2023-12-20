@@ -2,10 +2,10 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
-	commonErrors "github.com/equinor/radix-common/utils/errors"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/applicationconfig"
@@ -52,20 +52,22 @@ func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBui
 	if err != nil {
 		return err
 	}
-	_, err = ctx.kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(
-		context.Background(),
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      env.GetRadixConfigMapName(),
-				Namespace: env.GetAppNamespace(),
-				Labels:    map[string]string{kube.RadixJobNameLabel: ctx.GetEnv().GetRadixPipelineJobName()},
-			},
-			Data: map[string]string{
-				pipelineDefaults.PipelineConfigMapContent:      configFileContent,
-				pipelineDefaults.PipelineConfigMapBuildContext: string(buildContext),
-			},
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      env.GetRadixConfigMapName(),
+			Namespace: env.GetAppNamespace(),
+			Labels:    map[string]string{kube.RadixJobNameLabel: ctx.GetEnv().GetRadixPipelineJobName()},
 		},
-		metav1.CreateOptions{})
+		Data: map[string]string{
+			pipelineDefaults.PipelineConfigMapContent:      configFileContent,
+			pipelineDefaults.PipelineConfigMapBuildContext: string(buildContext),
+		},
+	}
+	if ctx.ownerReference != nil {
+		cm.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ctx.ownerReference}
+	}
+
+	_, err = ctx.kubeClient.CoreV1().ConfigMaps(env.GetAppNamespace()).Create(context.Background(), &cm, metav1.CreateOptions{})
 
 	if err != nil {
 		return err
@@ -109,7 +111,7 @@ func (ctx *pipelineContext) setTargetEnvironmentsForPromote() error {
 	}
 	if len(errs) > 0 {
 		log.Infoln("pipeline type: promote")
-		return commonErrors.Concat(errs)
+		return errors.Join(errs...)
 	}
 	ctx.targetEnvironments = map[string]bool{ctx.env.GetRadixDeployToEnvironment(): true} // run Tekton pipelines for the promote target environment
 	log.Infof("promote the deployment %s from the environment %s to %s", ctx.env.GetRadixPromoteDeployment(), ctx.env.GetRadixPromoteFromEnvironment(), ctx.env.GetRadixDeployToEnvironment())

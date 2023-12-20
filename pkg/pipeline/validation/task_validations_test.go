@@ -106,9 +106,52 @@ func TestValidateTask(t *testing.T) {
 			expecedErrors: []error{validation.ErrHostPathNotAllowed},
 		},
 		{
+			name: "Test allowed Pipeline labels and annotatoins",
+			task: pipelinev1.Task{
+				ObjectMeta: v1.ObjectMeta{
+					Name: "Test Task",
+					Labels: map[string]string{
+						"azure.workload.identity/use": "true",
+					},
+					Annotations: map[string]string{
+						"azure.workload.identity/skip-containers": "skip-id",
+					},
+				},
+				Spec: pipelinev1.TaskSpec{
+					Steps: []pipelinev1.Step{{}},
+				},
+			},
+			expecedErrors: []error{},
+		},
+		{
+			name: "Test illegal Pipeline labels and annotatoins",
+			task: pipelinev1.Task{
+				ObjectMeta: v1.ObjectMeta{
+					Name: "Test Task",
+					Labels: map[string]string{
+						"ILLEGAL_LABEL": "true",
+					},
+					Annotations: map[string]string{
+						"ILLEGAL_ANNOTATION": "true",
+					},
+				},
+				Spec: pipelinev1.TaskSpec{
+					Steps: []pipelinev1.Step{{}},
+				},
+			},
+			expecedErrors: []error{validation.ErrIllegalTaskLabel, validation.ErrIllegalTaskAnnotation},
+		},
+		{
 			name: "collection of errors",
 			task: pipelinev1.Task{
-				ObjectMeta: v1.ObjectMeta{Name: "Test Task"},
+				ObjectMeta: v1.ObjectMeta{
+					Name: "Test Task",
+					Labels: map[string]string{
+						"ILLEGAL_LABEL": "true",
+					},
+					Annotations: map[string]string{
+						"ILLEGAL_ANNOTATION": "true",
+					}},
 				Spec: pipelinev1.TaskSpec{
 					Volumes: []corev1.Volume{
 						{
@@ -138,6 +181,8 @@ func TestValidateTask(t *testing.T) {
 				validation.ErrHostPathNotAllowed,
 				validation.ErrRadixVolumeNameNotAllowed,
 				validation.ErrSecretReferenceNotAllowed,
+				validation.ErrIllegalTaskAnnotation,
+				validation.ErrIllegalTaskLabel,
 			},
 		},
 	}

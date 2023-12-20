@@ -1,8 +1,9 @@
 package validation
 
 import (
+	"errors"
 	"fmt"
-	commonErrors "github.com/equinor/radix-common/utils/errors"
+
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 )
 
@@ -12,7 +13,7 @@ func ValidatePipeline(pipeline *pipelinev1.Pipeline) error {
 
 	validationErrors = append(validationErrors, validatePipelineTasks(pipeline)...)
 
-	return commonErrors.Concat(validationErrors)
+	return errors.Join(validationErrors...)
 }
 
 func validatePipelineTasks(pipeline *pipelinev1.Pipeline) []error {

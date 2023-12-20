@@ -5,7 +5,11 @@ import (
 	"github.com/equinor/radix-tekton/pkg/models"
 )
 
-//GetLabelsForEnvironment Get Pipeline object labels for a target build environment
+const (
+	AzureWorkloadIdentityUse = "azure.workload.identity/use"
+)
+
+// GetLabelsForEnvironment Get Pipeline object labels for a target build environment
 func GetLabelsForEnvironment(ctx models.Context, targetEnv string) map[string]string {
 	appName := ctx.GetEnv().GetAppName()
 	imageTag := ctx.GetEnv().GetRadixImageTag()
