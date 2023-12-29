@@ -53,6 +53,10 @@ test:
 build:
 	docker build -t $(DOCKER_REGISTRY)/radix-tekton:$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH_TAG) -t $(DOCKER_REGISTRY)/radix-tekton:$(TAG) -f Dockerfile .
 
+.PHONY: lint
+lint: bootstrap
+	golangci-lint run --max-same-issues 0
+
 .PHONY: deploy
 deploy: build
 	az acr login --name $(CONTAINER_REPO)
@@ -61,10 +65,17 @@ deploy: build
 	docker push $(DOCKER_REGISTRY)/radix-tekton:$(TAG)
 
 .PHONY: mocks
-mocks:
+mocks: bootstrap
 	mockgen -source ./pkg/models/env/env.go -destination ./pkg/models/env/env_mock.go -package env
 	mockgen -source ./pkg/internal/wait/pipelinerun.go -destination ./pkg/internal/wait/pipelinerun_mock.go -package wait
 
-.PHONY: staticcheck
-staticcheck:
-	staticcheck ./... && go vet ./...
+HAS_GOLANGCI_LINT := $(shell command -v golangci-lint;)
+HAS_MOCKGEN       := $(shell command -v mockgen;)
+
+bootstrap:
+ifndef HAS_GOLANGCI_LINT
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2
+endif
+ifndef HAS_MOCKGEN
+	go install github.com/golang/mock/mockgen@v1.6.0
+endif
