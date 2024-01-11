@@ -99,6 +99,14 @@ github.com/equinor/radix-common v1.7.1 h1:kl7Tuo2VEo2WHGm/vkvktrZ9t9S3Nht7Mob3CS
 github.com/equinor/radix-common v1.7.1/go.mod h1:M6mhgHtFQ3rnjJnyOuECXiZOh7XQ5xVeHMyCAU+YPzQ=
 github.com/equinor/radix-operator v1.48.0 h1:10ABXtD7SJAJ2FcYOTJrWjW8h9nbsCsxQQ5LwC9qqYs=
 github.com/equinor/radix-operator v1.48.0/go.mod h1:kwwnvyW1WKCKiXVSKNhkG7zAe1sFC2XW9IbNZsCCgRw=
+github.com/equinor/radix-operator v1.48.3-0.20240109092745-565093b44ebc h1:2RS5vZZknXdEEWwDW1sWHE5gpn5/ScVI17uQmQiEepk=
+github.com/equinor/radix-operator v1.48.3-0.20240109092745-565093b44ebc/go.mod h1:kwwnvyW1WKCKiXVSKNhkG7zAe1sFC2XW9IbNZsCCgRw=
+github.com/equinor/radix-operator v1.48.3-0.20240109112956-87bd61076772 h1:we2QzlOmduzXmJuWT9SkIOxpDjbnBabhgBU0TwCIwqM=
+github.com/equinor/radix-operator v1.48.3-0.20240109112956-87bd61076772/go.mod h1:kwwnvyW1WKCKiXVSKNhkG7zAe1sFC2XW9IbNZsCCgRw=
+github.com/equinor/radix-operator v1.48.3-0.20240109145254-431c3d340bd5 h1:hYI6cVqMmOBmKO0qsf1TP1pVvia0Xf59WTH9RL7Ynkw=
+github.com/equinor/radix-operator v1.48.3-0.20240109145254-431c3d340bd5/go.mod h1:kwwnvyW1WKCKiXVSKNhkG7zAe1sFC2XW9IbNZsCCgRw=
+github.com/equinor/radix-operator v1.48.3 h1:MXre8IZYUPqymOh3EJ5Uuni43EXtTFtdwgt9XDubiCU=
+github.com/equinor/radix-operator v1.48.3/go.mod h1:kwwnvyW1WKCKiXVSKNhkG7zAe1sFC2XW9IbNZsCCgRw=
 github.com/evanphx/json-patch v5.7.0+incompatible h1:vgGkfT/9f8zE6tvSCe74nfpAVDQ2tG6yudJd8LBksgI=
 github.com/evanphx/json-patch v5.7.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.6.0 h1:b91NhWfaz02IuVxO9faSllyAtNXHMPkC5J8sJCLunww=
