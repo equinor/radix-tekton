@@ -157,15 +157,17 @@ func (ctx *pipelineContext) getEnvironmentsToBuild(changesFromGitRepository map[
 }
 
 func componentHasChangedSource(envName string, component v1.RadixCommonComponent, changedFolders []string) bool {
-	if len(component.GetImage()) > 0 {
+	image := component.GetImageForEnvironment(envName)
+	if len(image) > 0 {
 		return false
 	}
 	environmentConfig := component.GetEnvironmentConfigByName(envName)
-	if !component.GetEnabledForEnv(environmentConfig) {
+	if !component.GetEnabledForEnvironmentConfig(environmentConfig) {
 		return false
 	}
 
-	sourceFolder := cleanPathAndSurroundBySlashes(component.GetSourceFolder())
+	componentSource := component.GetSourceForEnvironment(envName)
+	sourceFolder := cleanPathAndSurroundBySlashes(componentSource.Folder)
 	if path.Dir(sourceFolder) == path.Dir("/") && len(changedFolders) > 0 {
 		return true // for components with the repository root as a 'src' - changes in any repository sub-folders are considered also as the component changes
 	}
