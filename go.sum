@@ -75,8 +75,9 @@ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMn
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cloudevents/sdk-go/v2 v2.14.0 h1:Nrob4FwVgi5L4tV9lhjzZcjYqFVyJzsA56CwPaPfv6s=
 github.com/cloudevents/sdk-go/v2 v2.14.0/go.mod h1:xDmKfzNjM8gBvjaF8ijFjM1VYOVUEeUfapHMUX1T5To=
-github.com/cloudflare/circl v1.3.3 h1:fE/Qz0QdIGqeWfnwq0RE0R7MI51s0M2E4Ga9kq5AEMs=
 github.com/cloudflare/circl v1.3.3/go.mod h1:5XYMA4rFBvNIrhs50XuiBJ15vF2pZn4nnUKZrLbUZFA=
+github.com/cloudflare/circl v1.3.7 h1:qlCDlTPz2n9fu58M0Nh1J/JzcFpfgkFHHX3O35r5vcU=
+github.com/cloudflare/circl v1.3.7/go.mod h1:sRTcRWXGLrKw6yIGJ+l7amYJFfAXbZG0kBSc8r4zxgA=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/cyphar/filepath-securejoin v0.2.4 h1:Ugdm7cg7i6ZK6x3xDF1oEu1nfkyfH53EtKeQYTC3kyg=
@@ -97,14 +98,6 @@ github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1m
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/equinor/radix-common v1.7.1 h1:kl7Tuo2VEo2WHGm/vkvktrZ9t9S3Nht7Mob3CSIzcJI=
 github.com/equinor/radix-common v1.7.1/go.mod h1:M6mhgHtFQ3rnjJnyOuECXiZOh7XQ5xVeHMyCAU+YPzQ=
-github.com/equinor/radix-operator v1.48.0 h1:10ABXtD7SJAJ2FcYOTJrWjW8h9nbsCsxQQ5LwC9qqYs=
-github.com/equinor/radix-operator v1.48.0/go.mod h1:kwwnvyW1WKCKiXVSKNhkG7zAe1sFC2XW9IbNZsCCgRw=
-github.com/equinor/radix-operator v1.48.3-0.20240109092745-565093b44ebc h1:2RS5vZZknXdEEWwDW1sWHE5gpn5/ScVI17uQmQiEepk=
-github.com/equinor/radix-operator v1.48.3-0.20240109092745-565093b44ebc/go.mod h1:kwwnvyW1WKCKiXVSKNhkG7zAe1sFC2XW9IbNZsCCgRw=
-github.com/equinor/radix-operator v1.48.3-0.20240109112956-87bd61076772 h1:we2QzlOmduzXmJuWT9SkIOxpDjbnBabhgBU0TwCIwqM=
-github.com/equinor/radix-operator v1.48.3-0.20240109112956-87bd61076772/go.mod h1:kwwnvyW1WKCKiXVSKNhkG7zAe1sFC2XW9IbNZsCCgRw=
-github.com/equinor/radix-operator v1.48.3-0.20240109145254-431c3d340bd5 h1:hYI6cVqMmOBmKO0qsf1TP1pVvia0Xf59WTH9RL7Ynkw=
-github.com/equinor/radix-operator v1.48.3-0.20240109145254-431c3d340bd5/go.mod h1:kwwnvyW1WKCKiXVSKNhkG7zAe1sFC2XW9IbNZsCCgRw=
 github.com/equinor/radix-operator v1.48.3 h1:MXre8IZYUPqymOh3EJ5Uuni43EXtTFtdwgt9XDubiCU=
 github.com/equinor/radix-operator v1.48.3/go.mod h1:kwwnvyW1WKCKiXVSKNhkG7zAe1sFC2XW9IbNZsCCgRw=
 github.com/evanphx/json-patch v5.7.0+incompatible h1:vgGkfT/9f8zE6tvSCe74nfpAVDQ2tG6yudJd8LBksgI=
