@@ -2,6 +2,7 @@ package git
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/equinor/radix-tekton/pkg/utils/logger"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -395,5 +397,5 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 }
 
 func setupLog(t *testing.T) {
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	logger.InitializeLogger(context.TODO(), zerolog.DebugLevel, true)
 }
