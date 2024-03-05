@@ -10,7 +10,7 @@ import (
 	dnsalias "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "github.com/golang/mock/gomock"
-	logrus "github.com/sirupsen/logrus"
+	zerolog "github.com/rs/zerolog"
 )
 
 // MockEnv is a mock of Env interface.
@@ -121,11 +121,12 @@ func (mr *MockEnvMockRecorder) GetGitRepositoryWorkspace() *gomock.Call {
 }
 
 // GetLogLevel mocks base method.
-func (m *MockEnv) GetLogLevel() logrus.Level {
+func (m *MockEnv) GetLogLevel() (zerolog.Level, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLogLevel")
-	ret0, _ := ret[0].(logrus.Level)
-	return ret0
+	ret0, _ := ret[0].(zerolog.Level)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetLogLevel indicates an expected call of GetLogLevel.
@@ -146,6 +147,20 @@ func (m *MockEnv) GetPipelinesAction() string {
 func (mr *MockEnvMockRecorder) GetPipelinesAction() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPipelinesAction", reflect.TypeOf((*MockEnv)(nil).GetPipelinesAction))
+}
+
+// GetPrettyPrint mocks base method.
+func (m *MockEnv) GetPrettyPrint() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPrettyPrint")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// GetPrettyPrint indicates an expected call of GetPrettyPrint.
+func (mr *MockEnvMockRecorder) GetPrettyPrint() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrettyPrint", reflect.TypeOf((*MockEnv)(nil).GetPrettyPrint))
 }
 
 // GetRadixConfigBranch mocks base method.

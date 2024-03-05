@@ -14,7 +14,7 @@ import (
 	"github.com/equinor/radix-tekton/pkg/models"
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	ownerreferences "github.com/equinor/radix-tekton/pkg/utils/owner_references"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -67,7 +67,7 @@ func (ctx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap v1.EnvVarsM
 	if ctx.radixApplication.Spec.Build == nil ||
 		ctx.radixApplication.Spec.Build.Variables == nil ||
 		len(ctx.radixApplication.Spec.Build.Variables) == 0 {
-		log.Debugln("No radixApplication build variables")
+		log.Debug().Msg("No radixApplication build variables")
 		return
 	}
 
@@ -90,7 +90,7 @@ func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv 
 // getGitHash return git commit to which the user repository should be reset before parsing sub-pipelines.
 func (ctx *pipelineContext) getGitHash() (string, error) {
 	if ctx.env.GetRadixPipelineType() == v1.Build {
-		log.Infof("build job with no deployment, skipping sub-pipelines.")
+		log.Info().Msg("build job with no deployment, skipping sub-pipelines.")
 		return "", nil
 	}
 
@@ -101,7 +101,7 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 			return sourceRdHashFromAnnotation, nil
 		}
 		if sourceDeploymentGitBranch == "" {
-			log.Infof("source deployment has no git metadata, skipping sub-pipelines")
+			log.Info().Msg("source deployment has no git metadata, skipping sub-pipelines")
 			return "", nil
 		}
 		sourceRdHashFromBranchHead, err := git.GetGitCommitHashFromHead(ctx.env.GetGitRepositoryWorkspace(), sourceDeploymentGitBranch)
@@ -118,7 +118,7 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 			pipelineJobBranch = re.Build.From
 		}
 		if pipelineJobBranch == "" {
-			log.Infof("deploy job with no build branch, skipping sub-pipelines.")
+			log.Info().Msg("deploy job with no build branch, skipping sub-pipelines.")
 			return "", nil
 		}
 		gitHash, err := git.GetGitCommitHashFromHead(ctx.env.GetGitRepositoryWorkspace(), pipelineJobBranch)

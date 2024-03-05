@@ -11,7 +11,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/utils/git"
 	tektonDefaults "github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/models/env/internal"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
 
@@ -106,15 +106,18 @@ func (e *env) GetDNSConfig() *dnsalias.DNSConfig {
 }
 
 // GetLogLevel Log level: ERROR, INFO (default), DEBUG
-func (e *env) GetLogLevel() log.Level {
-	switch viper.GetString(defaults.LogLevel) {
-	case "DEBUG":
-		return log.DebugLevel
-	case "ERROR":
-		return log.ErrorLevel
-	default:
-		return log.InfoLevel
+func (e *env) GetLogLevel() (zerolog.Level, error) {
+	level := viper.GetString(defaults.LogLevel)
+	if level == "" {
+		return zerolog.InfoLevel, nil
 	}
+
+	return zerolog.ParseLevel(level)
+}
+
+// GetPrettyPrint Format colored output instead of (default) JSON
+func (e *env) GetPrettyPrint() bool {
+	return viper.GetBool("PRETTY_PRINT")
 }
 
 // GetGitRepositoryWorkspace Path to the cloned GitHub repository
@@ -143,7 +146,8 @@ type Env interface {
 	GetRadixImageTag() string
 	GetBranch() string
 	GetPipelinesAction() string
-	GetLogLevel() log.Level
+	GetLogLevel() (zerolog.Level, error)
+	GetPrettyPrint() bool
 	GetGitRepositoryWorkspace() string
 	GetSourceDeploymentGitCommitHash() string
 	GetSourceDeploymentGitBranch() string

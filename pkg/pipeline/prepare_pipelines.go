@@ -24,7 +24,8 @@ import (
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,7 +73,7 @@ func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.Environme
 	var errs []error
 	timestamp := time.Now().Format("20060102150405")
 	for targetEnv := range ctx.targetEnvironments {
-		log.Debugf("create a sub-pipeline for the environment %s", targetEnv)
+		log.Debug().Msgf("create a sub-pipeline for the environment %s", targetEnv)
 		runSubPipeline, pipelineFilePath, err := ctx.preparePipelinesJobForTargetEnv(targetEnv, timestamp)
 		if err != nil {
 			errs = append(errs, err)
@@ -89,13 +90,12 @@ func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.Environme
 		return nil, err
 	}
 	if len(environmentSubPipelinesToRun) > 0 {
-		log.Infoln("Run sub-pipelines:")
-		for _, subPipelineToRun := range environmentSubPipelinesToRun {
-			log.Infof("- environment %s, pipeline file %s", subPipelineToRun.Environment, subPipelineToRun.PipelineFile)
-		}
+		log.Info().Any("pipelines", environmentSubPipelinesToRun).Func(func(e *zerolog.Event) {
+			e.Str("pkg", "something")
+		}).Msg("Run sub-pipelines")
 		return environmentSubPipelinesToRun, nil
 	}
-	log.Infoln("No sub-pipelines to run")
+	log.Info().Msg("No sub-pipelines to run")
 	return nil, nil
 }
 
@@ -200,7 +200,7 @@ func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(envName, timestamp s
 	err = ctx.pipelineFileExists(pipelineFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Infof("There is no Tekton pipeline file: %s. Skip Tekton pipeline", pipelineFilePath)
+			log.Info().Msgf("There is no Tekton pipeline file: %s. Skip Tekton pipeline", pipelineFilePath)
 			return false, "", nil
 		}
 		return false, "", err
@@ -210,13 +210,13 @@ func (ctx *pipelineContext) preparePipelinesJobForTargetEnv(envName, timestamp s
 	if err != nil {
 		return false, "", err
 	}
-	log.Debugf("loaded a pipeline with %d tasks", len(pipeline.Spec.Tasks))
+	log.Debug().Msgf("loaded a pipeline with %d tasks", len(pipeline.Spec.Tasks))
 
 	tasks, err := ctx.getPipelineTasks(pipelineFilePath, pipeline)
 	if err != nil {
 		return false, "", err
 	}
-	log.Debug("all pipeline tasks found")
+	log.Debug().Msg("all pipeline tasks found")
 	err = ctx.createPipeline(envName, pipeline, tasks, timestamp)
 	if err != nil {
 		return false, "", err
@@ -263,7 +263,7 @@ func (ctx *pipelineContext) buildTasks(envName string, tasks []pipelinev1.Task, 
 		}
 		ensureCorrectSecureContext(&task)
 		taskMap[originalTaskName] = task
-		log.Debugf("created the task %s", task.Name)
+		log.Debug().Msgf("created the task %s", task.Name)
 	}
 	return taskMap, errors.Join(errs...)
 }
@@ -362,7 +362,7 @@ func (ctx *pipelineContext) getPipelineTasks(pipelineFilePath string, pipeline *
 func (ctx *pipelineContext) getPipelineFilePath(pipelineFile string) (string, error) {
 	if len(pipelineFile) == 0 {
 		pipelineFile = defaults.DefaultPipelineFileName
-		log.Debugf("Tekton pipeline file name is not specified, using the default file name %s", defaults.DefaultPipelineFileName)
+		log.Debug().Msgf("Tekton pipeline file name is not specified, using the default file name %s", defaults.DefaultPipelineFileName)
 	}
 	pipelineFile = strings.TrimPrefix(pipelineFile, "/") // Tekton pipeline folder currently is relative to the Radix config file repository folder
 	configFolder := filepath.Dir(ctx.env.GetRadixConfigFileName())
@@ -403,13 +403,13 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 	if err != nil {
 		return fmt.Errorf("tasks have not been created. Error: %w", err)
 	}
-	log.Infof("creates %d tasks for the environment %s", len(taskMap), envName)
+	log.Info().Msgf("creates %d tasks for the environment %s", len(taskMap), envName)
 
 	_, err = ctx.tektonClient.TektonV1().Pipelines(ctx.env.GetAppNamespace()).Create(context.Background(), pipeline, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("pipeline %s has not been created. Error: %w", pipeline.Name, err)
 	}
-	log.Infof("created the pipeline %s for the environment %s", pipeline.Name, envName)
+	log.Info().Msgf("created the pipeline %s for the environment %s", pipeline.Name, envName)
 	return nil
 }
 
@@ -450,7 +450,7 @@ func getPipeline(pipelineFileName string) (*pipelinev1.Pipeline, error) {
 	hotfixForPipelineDefaultParamsWithBrokenValue(&pipeline)
 	hotfixForPipelineTasksParamsWithBrokenValue(&pipeline)
 
-	log.Debugf("loaded pipeline %s", pipelineFileName)
+	log.Debug().Msgf("loaded pipeline %s", pipelineFileName)
 	err = validation.ValidatePipeline(&pipeline)
 	if err != nil {
 		return nil, err
@@ -509,7 +509,7 @@ func getTasks(pipelineFilePath string) (map[string]pipelinev1.Task, error) {
 			return nil, fmt.Errorf("failed to read data from the file %s: %v", fileName, err)
 		}
 		if !taskIsValid(&task) {
-			log.Debugf("skip the file %s - not a Tekton task", fileName)
+			log.Debug().Msgf("skip the file %s - not a Tekton task", fileName)
 			continue
 		}
 		addGitDeployKeyVolume(&task)

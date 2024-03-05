@@ -1,42 +1,60 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"time"
 
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-tekton/pkg/kubernetes"
 	"github.com/equinor/radix-tekton/pkg/models"
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/equinor/radix-tekton/pkg/pipeline"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
 	environment := env.NewEnvironment()
-	setLogLevel(environment)
+	_, err := initializeLogger(context.Background(), environment)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize logger")
+	}
 
 	kubeClient, radixClient, tektonClient, err := kubernetes.GetClients()
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal().Err(err).Msg("Failed to initialize kubeClient")
 	}
 
 	ctx := pipeline.NewPipelineContext(kubeClient, radixClient, tektonClient, environment)
 	err = runAction(ctx)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal().Err(err).Msg("Failed to run ")
 	}
 
-	log.Infof("Completed")
+	log.Info().Msg("Completed")
 }
 
-func setLogLevel(environment env.Env) {
-	logLevel := environment.GetLogLevel()
-	log.SetLevel(logLevel)
-	log.Debugf("log-level '%v'", logLevel)
+func initializeLogger(ctx context.Context, environment env.Env) (context.Context, error) {
+	logLevel, err := environment.GetLogLevel()
+	if err != nil {
+		return ctx, err
+	}
+
+	zerolog.SetGlobalLevel(logLevel)
+	zerolog.DurationFieldUnit = time.Millisecond
+	if environment.GetPrettyPrint() {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.TimeOnly})
+	}
+	ctx = log.Logger.WithContext(ctx)
+
+	log.Debug().Msgf("log-level '%v'", logLevel.String())
+	return ctx, nil
 }
 func runAction(ctx models.Context) error {
 	action := ctx.GetEnv().GetPipelinesAction()
-	log.Debugf("execute an action %s", action)
+	log.Debug().Msgf("execute an action %s", action)
 	switch action {
 	case pipelineDefaults.RadixPipelineActionPrepare:
 		return ctx.ProcessRadixAppConfig()

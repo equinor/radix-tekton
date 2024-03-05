@@ -14,7 +14,7 @@ import (
 	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -24,7 +24,7 @@ import (
 // RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
 func (ctx *pipelineContext) RunPipelinesJob() error {
 	if ctx.GetEnv().GetRadixPipelineType() == radixv1.Build {
-		log.Infof("pipeline type is build, skip Tekton pipeline run.")
+		log.Info().Msg("pipeline type is build, skip Tekton pipeline run.")
 		return nil
 	}
 	namespace := ctx.env.GetAppNamespace()
@@ -35,7 +35,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		return err
 	}
 	if len(pipelineList.Items) == 0 {
-		log.Infof("no pipelines exist, skip Tekton pipeline run.")
+		log.Info().Msg("no pipelines exist, skip Tekton pipeline run.")
 		return nil
 	}
 
@@ -54,7 +54,7 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.env.GetRadixDeployToEnvironment())
 		tektonPipelineBranch = re.Build.From
 	}
-	log.Infof("Run tekton pipelines for the branch %s", tektonPipelineBranch)
+	log.Info().Msgf("Run tekton pipelines for the branch %s", tektonPipelineBranch)
 
 	pipelineRunMap, err := ctx.runPipelines(pipelineList.Items, namespace)
 
@@ -101,7 +101,7 @@ func (ctx *pipelineContext) createPipelineRun(namespace string, pipeline *pipeli
 		return nil, fmt.Errorf("missing target environment in labels of the pipeline %s", pipeline.Name)
 	}
 
-	log.Debugf("run pipelinerun for the target environment %s", targetEnv)
+	log.Debug().Msgf("run pipelinerun for the target environment %s", targetEnv)
 	if _, ok := ctx.targetEnvironments[targetEnv]; !ok {
 		return nil, fmt.Errorf("missing target environment %s for the pipeline %s", targetEnv, pipeline.Name)
 	}
