@@ -149,20 +149,6 @@ func (mr *MockEnvMockRecorder) GetPipelinesAction() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPipelinesAction", reflect.TypeOf((*MockEnv)(nil).GetPipelinesAction))
 }
 
-// GetPrettyPrint mocks base method.
-func (m *MockEnv) GetPrettyPrint() bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPrettyPrint")
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// GetPrettyPrint indicates an expected call of GetPrettyPrint.
-func (mr *MockEnvMockRecorder) GetPrettyPrint() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrettyPrint", reflect.TypeOf((*MockEnv)(nil).GetPrettyPrint))
-}
-
 // GetRadixConfigBranch mocks base method.
 func (m *MockEnv) GetRadixConfigBranch() string {
 	m.ctrl.T.Helper()

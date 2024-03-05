@@ -115,11 +115,6 @@ func (e *env) GetLogLevel() (zerolog.Level, error) {
 	return zerolog.ParseLevel(level)
 }
 
-// GetPrettyPrint Format colored output instead of (default) JSON
-func (e *env) GetPrettyPrint() bool {
-	return viper.GetBool("PRETTY_PRINT")
-}
-
 // GetGitRepositoryWorkspace Path to the cloned GitHub repository
 func (e *env) GetGitRepositoryWorkspace() string {
 	workspace := viper.GetString(tektonDefaults.RadixGithubWorkspaceEnvironmentVariable)
@@ -147,7 +142,6 @@ type Env interface {
 	GetBranch() string
 	GetPipelinesAction() string
 	GetLogLevel() (zerolog.Level, error)
-	GetPrettyPrint() bool
 	GetGitRepositoryWorkspace() string
 	GetSourceDeploymentGitCommitHash() string
 	GetSourceDeploymentGitBranch() string
