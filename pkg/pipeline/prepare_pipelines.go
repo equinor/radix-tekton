@@ -24,7 +24,6 @@ import (
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/labels"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/deployment/commithash"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -90,9 +89,10 @@ func (ctx *pipelineContext) getEnvironmentSubPipelinesToRun() ([]model.Environme
 		return nil, err
 	}
 	if len(environmentSubPipelinesToRun) > 0 {
-		log.Info().Any("pipelines", environmentSubPipelinesToRun).Func(func(e *zerolog.Event) {
-			e.Str("pkg", "something")
-		}).Msg("Run sub-pipelines")
+		log.Info().Msg("Run sub-pipelines:")
+		for _, subPipelineToRun := range environmentSubPipelinesToRun {
+			log.Info().Msgf("- environment %s, pipeline file %s", subPipelineToRun.Environment, subPipelineToRun.PipelineFile)
+		}
 		return environmentSubPipelinesToRun, nil
 	}
 	log.Info().Msg("No sub-pipelines to run")
