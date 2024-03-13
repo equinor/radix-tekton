@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/equinor/radix-tekton/pkg/utils/test"
-	log "github.com/sirupsen/logrus"
+	"github.com/equinor/radix-tekton/pkg/utils/logger"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -396,6 +396,5 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 }
 
 func setupLog(t *testing.T) {
-	log.AddHook(test.NewTestLogHook(t, log.DebugLevel).
-		ModifyFormatter(func(f *log.TextFormatter) { f.DisableTimestamp = true }))
+	logger.InitializeLogger(zerolog.DebugLevel, true)
 }

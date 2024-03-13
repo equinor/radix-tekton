@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/equinor/radix-tekton/pkg/models/env"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	tektonclient "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	tektonInformerFactory "github.com/tektoncd/pipeline/pkg/client/informers/externalversions"
@@ -70,18 +70,18 @@ func waitForCompletionOf(pipelineRuns map[string]*pipelinev1.PipelineRun, tekton
 
 				switch {
 				case lastCondition.Reason == pipelinev1.PipelineRunReasonCompleted.String():
-					log.Infof("pipelineRun completed: %s", lastCondition.Message)
+					log.Info().Msgf("pipelineRun completed: %s", lastCondition.Message)
 				case lastCondition.Reason == pipelinev1.PipelineRunReasonFailed.String():
 					errChan <- fmt.Errorf("PipelineRun failed: %s", lastCondition.Message)
 					return
 				default:
-					log.Infof("pipelineRun status %s: %s", lastCondition.Reason, lastCondition.Message)
+					log.Info().Msgf("pipelineRun status %s: %s", lastCondition.Reason, lastCondition.Message)
 				}
 				if len(pipelineRuns) == 0 {
 					errChan <- nil
 				}
 			} else {
-				log.Debugf("Ongoing - PipelineRun has not completed yet")
+				log.Debug().Msgf("Ongoing - PipelineRun has not completed yet")
 			}
 		},
 		DeleteFunc: func(old interface{}) {
