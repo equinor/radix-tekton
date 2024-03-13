@@ -1,7 +1,6 @@
 package logger
 
 import (
-	"context"
 	"os"
 	"time"
 
@@ -9,14 +8,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func InitializeLogger(ctx context.Context, logLevel zerolog.Level, prettyPrint bool) context.Context {
+func InitializeLogger(logLevel zerolog.Level, prettyPrint bool) {
 	zerolog.SetGlobalLevel(logLevel)
 	zerolog.DurationFieldUnit = time.Millisecond
 	if prettyPrint {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.TimeOnly})
 	}
-	ctx = log.Logger.WithContext(ctx)
 
+	zerolog.DefaultContextLogger = &log.Logger
 	log.Debug().Msgf("log-level '%v'", logLevel.String())
-	return ctx
 }

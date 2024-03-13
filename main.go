@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
@@ -19,10 +18,8 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize log level")
 	}
-	logger.InitializeLogger(context.Background(), level, true)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize logger")
-	}
+
+	logger.InitializeLogger(level, true)
 
 	kubeClient, radixClient, tektonClient, err := kubernetes.GetClients()
 	if err != nil {
