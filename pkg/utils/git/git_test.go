@@ -2,7 +2,6 @@ package git
 
 import (
 	"archive/zip"
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -397,5 +396,5 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 }
 
 func setupLog(t *testing.T) {
-	logger.InitializeLogger(context.TODO(), zerolog.DebugLevel, true)
+	logger.InitializeLogger(zerolog.DebugLevel, true)
 }
