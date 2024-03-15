@@ -110,7 +110,7 @@ func tearDownGitTest() {
 }
 
 func TestGetGitCommitHashFromHead_DummyRepo2(t *testing.T) {
-	setupLog(t)
+	setupLog()
 	gitDirPath := setupGitTest("test_data2.zip", "test_data2")
 
 	releaseBranchHeadCommitHash := "a1ee44808de2a42d291b59fefb5c66b8ff6bf898"
@@ -122,7 +122,7 @@ func TestGetGitCommitHashFromHead_DummyRepo2(t *testing.T) {
 }
 
 func TestGetGitCommitTags(t *testing.T) {
-	setupLog(t)
+	setupLog()
 	gitDirPath := setupGitTest("test_data.zip", "test_data")
 
 	branchName := "branch-with-tags"
@@ -143,7 +143,7 @@ func TestGetGitCommitTags(t *testing.T) {
 }
 
 func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
-	setupLog(t)
+	setupLog()
 	scenarios := []struct {
 		name                      string
 		beforeCommitExclusive     string
@@ -395,6 +395,6 @@ func TestGetGitChangedFolders_DummyRepo(t *testing.T) {
 	tearDownGitTest()
 }
 
-func setupLog(t *testing.T) {
+func setupLog() {
 	logger.InitializeLogger(zerolog.DebugLevel, true)
 }
