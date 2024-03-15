@@ -12,7 +12,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
@@ -24,13 +24,13 @@ func (ctx *pipelineContext) ProcessRadixAppConfig() error {
 	if err != nil {
 		return fmt.Errorf("error reading the Radix config file %s: %v", ctx.GetEnv().GetRadixConfigFileName(), err)
 	}
-	log.Debugf("Radix config file %s has been loaded", ctx.GetEnv().GetRadixConfigFileName())
+	log.Debug().Msgf("Radix config file %s has been loaded", ctx.GetEnv().GetRadixConfigFileName())
 
 	ctx.radixApplication, err = ctx.createRadixApplicationFromContent(configFileContent)
 	if err != nil {
 		return err
 	}
-	log.Debug("Radix Application has been loaded")
+	log.Debug().Msg("Radix Application has been loaded")
 
 	err = ctx.setTargetEnvironments()
 	if err != nil {
@@ -72,12 +72,12 @@ func (ctx *pipelineContext) createConfigMap(configFileContent string, prepareBui
 	if err != nil {
 		return err
 	}
-	log.Debugf("Created ConfigMap %s", env.GetRadixConfigMapName())
+	log.Debug().Msgf("Created ConfigMap %s", env.GetRadixConfigMapName())
 	return nil
 }
 
 func (ctx *pipelineContext) setTargetEnvironments() error {
-	log.Debug("Set target environment")
+	log.Debug().Msg("Set target environment")
 	if ctx.GetEnv().GetRadixPipelineType() == v1.Promote {
 		return ctx.setTargetEnvironmentsForPromote()
 	}
@@ -90,11 +90,11 @@ func (ctx *pipelineContext) setTargetEnvironments() error {
 		ctx.targetEnvironments[envName] = true
 	}
 	if len(ctx.targetEnvironments) > 0 {
-		log.Infof("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())
+		log.Info().Msgf("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())
 	} else {
-		log.Infof("No environments are mapped to the branch %s.", ctx.env.GetBranch())
+		log.Info().Msgf("No environments are mapped to the branch %s.", ctx.env.GetBranch())
 	}
-	log.Infof("pipeline type: %s", ctx.env.GetRadixPipelineType())
+	log.Info().Msgf("pipeline type: %s", ctx.env.GetRadixPipelineType())
 	return nil
 }
 
@@ -110,11 +110,11 @@ func (ctx *pipelineContext) setTargetEnvironmentsForPromote() error {
 		errs = append(errs, fmt.Errorf("missing promote target environment name"))
 	}
 	if len(errs) > 0 {
-		log.Infoln("pipeline type: promote")
+		log.Info().Msg("pipeline type: promote")
 		return errors.Join(errs...)
 	}
 	ctx.targetEnvironments = map[string]bool{ctx.env.GetRadixDeployToEnvironment(): true} // run Tekton pipelines for the promote target environment
-	log.Infof("promote the deployment %s from the environment %s to %s", ctx.env.GetRadixPromoteDeployment(), ctx.env.GetRadixPromoteFromEnvironment(), ctx.env.GetRadixDeployToEnvironment())
+	log.Info().Msgf("promote the deployment %s from the environment %s to %s", ctx.env.GetRadixPromoteDeployment(), ctx.env.GetRadixPromoteFromEnvironment(), ctx.env.GetRadixDeployToEnvironment())
 	return nil
 }
 
@@ -124,8 +124,8 @@ func (ctx *pipelineContext) setTargetEnvironmentsForDeploy() error {
 		return fmt.Errorf("no target environment is specified for the deploy pipeline")
 	}
 	ctx.targetEnvironments = map[string]bool{targetEnvironment: true}
-	log.Infof("Target environment: %v", targetEnvironment)
-	log.Infof("pipeline type: %s", ctx.env.GetRadixPipelineType())
+	log.Info().Msgf("Target environment: %v", targetEnvironment)
+	log.Info().Msgf("pipeline type: %s", ctx.env.GetRadixPipelineType())
 	return nil
 }
 

@@ -10,7 +10,7 @@ import (
 	dnsalias "github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	gomock "github.com/golang/mock/gomock"
-	logrus "github.com/sirupsen/logrus"
+	zerolog "github.com/rs/zerolog"
 )
 
 // MockEnv is a mock of Env interface.
@@ -121,11 +121,12 @@ func (mr *MockEnvMockRecorder) GetGitRepositoryWorkspace() *gomock.Call {
 }
 
 // GetLogLevel mocks base method.
-func (m *MockEnv) GetLogLevel() logrus.Level {
+func (m *MockEnv) GetLogLevel() (zerolog.Level, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetLogLevel")
-	ret0, _ := ret[0].(logrus.Level)
-	return ret0
+	ret0, _ := ret[0].(zerolog.Level)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetLogLevel indicates an expected call of GetLogLevel.

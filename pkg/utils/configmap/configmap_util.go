@@ -8,7 +8,7 @@ import (
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-tekton/pkg/models/env"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,7 +49,7 @@ func CreateGitConfigFromGitRepository(env env.Env, kubeClient kubernetes.Interfa
 	if err != nil {
 		return err
 	}
-	log.Debugf("Created ConfigMap %s", env.GetGitConfigMapName())
+	log.Debug().Msgf("Created ConfigMap %s", env.GetGitConfigMapName())
 	return nil
 }
 

@@ -6,16 +6,16 @@ import (
 	"os"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-//GetOwnerReferenceOfJobFromLabels Created an OwnerReference from the DownwardAPI created file, if exist
+// GetOwnerReferenceOfJobFromLabels Created an OwnerReference from the DownwardAPI created file, if exist
 func GetOwnerReferenceOfJobFromLabels() *metav1.OwnerReference {
 	controllerUid, jobName, err := getOwnerReferencePropertiesFromDownwardsApiFile()
 	if err != nil {
-		log.Debugf("%v", err)
+		log.Debug().Msgf("%v", err)
 		return nil
 	}
 	return &metav1.OwnerReference{
@@ -28,7 +28,7 @@ func GetOwnerReferenceOfJobFromLabels() *metav1.OwnerReference {
 
 func getOwnerReferencePropertiesFromDownwardsApiFile() (string, string, error) {
 	labelsFile := "/pod-labels/labels"
-	log.Debugf("read pod-labels from the file %s", labelsFile)
+	log.Debug().Msgf("read pod-labels from the file %s", labelsFile)
 	if _, err := os.Stat(labelsFile); os.IsNotExist(err) {
 		return "", "", fmt.Errorf("missing the file with labels %s - ownerReference is not set to the pod", labelsFile)
 	}

@@ -8,35 +8,36 @@ import (
 	"github.com/equinor/radix-tekton/pkg/models"
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/equinor/radix-tekton/pkg/pipeline"
-	log "github.com/sirupsen/logrus"
+	"github.com/equinor/radix-tekton/pkg/utils/logger"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
 	environment := env.NewEnvironment()
-	setLogLevel(environment)
+	level, err := environment.GetLogLevel()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize log level")
+	}
+
+	logger.InitializeLogger(level, true)
 
 	kubeClient, radixClient, tektonClient, err := kubernetes.GetClients()
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal().Err(err).Msg("Failed to initialize kubeClient")
 	}
 
 	ctx := pipeline.NewPipelineContext(kubeClient, radixClient, tektonClient, environment)
 	err = runAction(ctx)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal().Err(err).Msg("Failed to run ")
 	}
 
-	log.Infof("Completed")
+	log.Info().Msg("Completed")
 }
 
-func setLogLevel(environment env.Env) {
-	logLevel := environment.GetLogLevel()
-	log.SetLevel(logLevel)
-	log.Debugf("log-level '%v'", logLevel)
-}
 func runAction(ctx models.Context) error {
 	action := ctx.GetEnv().GetPipelinesAction()
-	log.Debugf("execute an action %s", action)
+	log.Debug().Msgf("execute an action %s", action)
 	switch action {
 	case pipelineDefaults.RadixPipelineActionPrepare:
 		return ctx.ProcessRadixAppConfig()
