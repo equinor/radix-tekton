@@ -89,8 +89,8 @@ func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv 
 
 // getGitHash return git commit to which the user repository should be reset before parsing sub-pipelines.
 func (ctx *pipelineContext) getGitHash() (string, error) {
-	if ctx.env.GetRadixPipelineType() == v1.Build {
-		log.Info().Msg("build job with no deployment, skipping sub-pipelines.")
+	if ctx.env.GetRadixPipelineType() == v1.Build || ctx.env.GetRadixPipelineType() == v1.ApplyConfig {
+		log.Info().Msg("Skipping sub-pipelines.")
 		return "", nil
 	}
 
