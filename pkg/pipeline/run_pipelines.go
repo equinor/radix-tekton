@@ -24,7 +24,7 @@ import (
 // RunPipelinesJob Run the job, which creates Tekton PipelineRun-s for each preliminary prepared pipelines of the specified branch
 func (ctx *pipelineContext) RunPipelinesJob() error {
 	if ctx.GetEnv().GetRadixPipelineType() == radixv1.Build {
-		log.Info().Msg("pipeline type is build, skip Tekton pipeline run.")
+		log.Info().Msg("Pipeline type is build, skip Tekton pipeline run.")
 		return nil
 	}
 	namespace := ctx.env.GetAppNamespace()
