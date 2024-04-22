@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/equinor/radix-tekton/pkg/internal/wait"
@@ -121,6 +122,10 @@ func (ctx *pipelineContext) getGitHash() (string, error) {
 			log.Info().Msg("deploy job with no build branch, skipping sub-pipelines.")
 			return "", nil
 		}
+		if containsRegex(pipelineJobBranch) {
+			log.Info().Msg("deploy job with build branch having regex pattern, skipping sub-pipelines.")
+			return "", nil
+		}
 		gitHash, err := git.GetGitCommitHashFromHead(ctx.env.GetGitRepositoryWorkspace(), pipelineJobBranch)
 		if err != nil {
 			return "", err
@@ -164,4 +169,16 @@ func WithPipelineRunsWaiter(waiter wait.PipelineRunsCompletionWaiter) NewPipelin
 	return func(ctx *pipelineContext) {
 		ctx.waiter = waiter
 	}
+}
+
+func containsRegex(value string) bool {
+	if simpleSentence := regexp.MustCompile(`^[a-zA-Z0-9\s\.\-/]+$`); simpleSentence.MatchString(value) {
+		return false
+	}
+	// Regex value that looks for typical regex special characters
+	if specialRegexChars := regexp.MustCompile(`[\[\](){}.*+?^$\\|]`); specialRegexChars.FindStringIndex(value) != nil {
+		_, err := regexp.Compile(value)
+		return err == nil
+	}
+	return false
 }
