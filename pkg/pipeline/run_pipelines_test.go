@@ -86,7 +86,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 	type scenario struct {
 		name                          string
 		pipelineSpec                  pipelinev1.PipelineSpec
-		appEnvBuilder                 utils.ApplicationEnvironmentBuilder
+		appEnvBuilder                 []utils.ApplicationEnvironmentBuilder
 		buildVariables                radixv1.EnvVarsMap
 		buildSubPipeline              utils.SubPipelineBuilder
 		expectedPipelineRunParamNames map[string]string
@@ -95,17 +95,18 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 	scenarios := []scenario{
 		{name: "no env vars and secrets",
 			pipelineSpec:  pipelinev1.PipelineSpec{},
-			appEnvBuilder: utils.NewApplicationEnvironmentBuilder().WithName(env1),
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1)},
 		},
 		{name: "task uses common env vars",
 			pipelineSpec: pipelinev1.PipelineSpec{
 				Params: []pipelinev1.ParamSpec{
 					{Name: "var1", Type: pipelinev1.ParamTypeString},
+					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3"}},
 				},
 			},
-			appEnvBuilder:                 utils.NewApplicationEnvironmentBuilder().WithName(env1),
+			appEnvBuilder:                 []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1)},
 			buildVariables:                map[string]string{"var1": "value1", "var2": "value2"},
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1"},
+			expectedPipelineRunParamNames: map[string]string{"var1": "value1", "var3": "value3"},
 		},
 	}
 
@@ -121,7 +122,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
 				WithBuildVariables(ts.buildVariables).
 				WithSubPipeline(ts.buildSubPipeline).
-				WithApplicationEnvironmentBuilders(ts.appEnvBuilder)
+				WithApplicationEnvironmentBuilders(ts.appEnvBuilder...)
 			raContent, err := yaml.Marshal(raBuilder.BuildRA())
 			require.NoError(t, err)
 			_, err = rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), &radixv1.RadixRegistration{
@@ -146,7 +147,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, pipelineRunList.Items, 1)
 			pr := pipelineRunList.Items[0]
-			assert.Len(t, pr.Spec.Params, len(ts.expectedPipelineRunParamNames), "mismatching .Spec.Params element count")
+			assert.Len(t, pr.Spec.Params, len(ts.expectedPipelineRunParamNames), "mismatching pipelineRun.Spec.Params element count")
 			for _, param := range pr.Spec.Params {
 				expectedValue, ok := ts.expectedPipelineRunParamNames[param.Name]
 				assert.True(t, ok, "unexpected param %s", param.Name)

@@ -179,6 +179,24 @@ func (ctx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipeline, tar
 			param.Value.StringVal = envVarValue
 		}
 		pipelineParams = append(pipelineParams, param)
+		delete(pipelineParamsMap, envVarName)
+	}
+	for paramName, paramSpec := range pipelineParamsMap {
+		param := pipelinev1.Param{
+			Name: paramName,
+			Value: pipelinev1.ParamValue{
+				Type:      paramSpec.Type,
+				StringVal: paramSpec.Default.StringVal,
+				ArrayVal:  paramSpec.Default.ArrayVal,
+				ObjectVal: paramSpec.Default.ObjectVal,
+			},
+		}
+		if paramSpec.Default != nil {
+			param.Value.StringVal = paramSpec.Default.StringVal
+			param.Value.ArrayVal = paramSpec.Default.ArrayVal
+			param.Value.ObjectVal = paramSpec.Default.ObjectVal
+		}
+		pipelineParams = append(pipelineParams, param)
 	}
 	return pipelineParams
 }
