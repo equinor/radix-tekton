@@ -87,7 +87,6 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 		name             string
 		pipelineSpec     pipelinev1.PipelineSpec
 		appEnvBuilder    utils.ApplicationEnvironmentBuilder
-		buildSecrets     []string
 		buildVariables   radixv1.EnvVarsMap
 		buildSubPipeline utils.SubPipelineBuilder
 	}
@@ -96,6 +95,16 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 		{name: "no env vars and secrets",
 			pipelineSpec:  pipelinev1.PipelineSpec{},
 			appEnvBuilder: utils.NewApplicationEnvironmentBuilder().WithName(env1),
+		},
+		{name: "task uses common env vars and secrets",
+			pipelineSpec: pipelinev1.PipelineSpec{
+				Params: []pipelinev1.ParamSpec{
+					{Name: "var1", Type: pipelinev1.ParamTypeString},
+					{Name: "secret1", Type: pipelinev1.ParamTypeString},
+				},
+			},
+			appEnvBuilder:  utils.NewApplicationEnvironmentBuilder().WithName(env1),
+			buildVariables: map[string]string{"var1": "value1", "var2": "value2"},
 		},
 	}
 
@@ -109,7 +118,6 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 			ctx := pipeline.NewPipelineContext(kubeClient, rxClient, tknClient, env, pipeline.WithPipelineRunsWaiter(completionWaiter))
 
 			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
-				WithBuildSecrets(ts.buildSecrets...).
 				WithBuildVariables(ts.buildVariables).
 				WithSubPipeline(ts.buildSubPipeline).
 				WithApplicationEnvironmentBuilders(ts.appEnvBuilder)
@@ -125,10 +133,11 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 				},
 			}, metav1.CreateOptions{})
 
-			_, err = tknClient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
-				ObjectMeta: metav1.ObjectMeta{Name: radixPipelineJobName, Labels: labels.GetLabelsForEnvironment(ctx, "dev")},
+			p, err := tknClient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
+				ObjectMeta: metav1.ObjectMeta{Name: radixPipelineJobName, Labels: labels.GetLabelsForEnvironment(ctx, env1)},
 				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
 			require.NoError(t, err)
+			require.NotNil(t, p)
 
 			err = ctx.RunPipelinesJob()
 			require.NoError(t, err)

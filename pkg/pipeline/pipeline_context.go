@@ -65,10 +65,8 @@ func (ctx *pipelineContext) getEnvVars(targetEnv string) v1.EnvVarsMap {
 }
 
 func (ctx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap v1.EnvVarsMap) {
-	if ctx.radixApplication.Spec.Build == nil ||
-		ctx.radixApplication.Spec.Build.Variables == nil ||
-		len(ctx.radixApplication.Spec.Build.Variables) == 0 {
-		log.Debug().Msg("No radixApplication build variables")
+	if ctx.radixApplication.Spec.Build == nil {
+		log.Debug().Msg("No RadixApplication build configurations found")
 		return
 	}
 
@@ -79,7 +77,7 @@ func (ctx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap v1.EnvVarsM
 
 func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv string, envVarsMap v1.EnvVarsMap) {
 	for _, buildEnv := range ctx.radixApplication.Spec.Environments {
-		if !strings.EqualFold(buildEnv.Name, targetEnv) || buildEnv.Build.Variables == nil {
+		if !strings.EqualFold(buildEnv.Name, targetEnv) {
 			continue
 		}
 		for envVarName, envVarVal := range buildEnv.Build.Variables {
