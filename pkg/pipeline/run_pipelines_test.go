@@ -84,11 +84,12 @@ func Test_RunPipeline_Has_ServiceAccount(t *testing.T) {
 
 func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 	type scenario struct {
-		name             string
-		pipelineSpec     pipelinev1.PipelineSpec
-		appEnvBuilder    utils.ApplicationEnvironmentBuilder
-		buildVariables   radixv1.EnvVarsMap
-		buildSubPipeline utils.SubPipelineBuilder
+		name                          string
+		pipelineSpec                  pipelinev1.PipelineSpec
+		appEnvBuilder                 utils.ApplicationEnvironmentBuilder
+		buildVariables                radixv1.EnvVarsMap
+		buildSubPipeline              utils.SubPipelineBuilder
+		expectedPipelineRunParamNames map[string]string
 	}
 
 	scenarios := []scenario{
@@ -96,15 +97,15 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 			pipelineSpec:  pipelinev1.PipelineSpec{},
 			appEnvBuilder: utils.NewApplicationEnvironmentBuilder().WithName(env1),
 		},
-		{name: "task uses common env vars and secrets",
+		{name: "task uses common env vars",
 			pipelineSpec: pipelinev1.PipelineSpec{
 				Params: []pipelinev1.ParamSpec{
 					{Name: "var1", Type: pipelinev1.ParamTypeString},
-					{Name: "secret1", Type: pipelinev1.ParamTypeString},
 				},
 			},
-			appEnvBuilder:  utils.NewApplicationEnvironmentBuilder().WithName(env1),
-			buildVariables: map[string]string{"var1": "value1", "var2": "value2"},
+			appEnvBuilder:                 utils.NewApplicationEnvironmentBuilder().WithName(env1),
+			buildVariables:                map[string]string{"var1": "value1", "var2": "value2"},
+			expectedPipelineRunParamNames: map[string]string{"var1": "value1"},
 		},
 	}
 
@@ -133,18 +134,25 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 				},
 			}, metav1.CreateOptions{})
 
-			p, err := tknClient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
+			_, err = tknClient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 				ObjectMeta: metav1.ObjectMeta{Name: radixPipelineJobName, Labels: labels.GetLabelsForEnvironment(ctx, env1)},
 				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
 			require.NoError(t, err)
-			require.NotNil(t, p)
 
 			err = ctx.RunPipelinesJob()
 			require.NoError(t, err)
 
-			l, err := tknClient.TektonV1().PipelineRuns(ctx.GetEnv().GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
+			pipelineRunList, err := tknClient.TektonV1().PipelineRuns(ctx.GetEnv().GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
 			require.NoError(t, err)
-			assert.NotEmpty(t, l.Items)
+			assert.Len(t, pipelineRunList.Items, 1)
+			pr := pipelineRunList.Items[0]
+			assert.Len(t, pr.Spec.Params, len(ts.expectedPipelineRunParamNames), "mismatching .Spec.Params element count")
+			for _, param := range pr.Spec.Params {
+				expectedValue, ok := ts.expectedPipelineRunParamNames[param.Name]
+				assert.True(t, ok, "unexpected param %s", param.Name)
+				assert.Equal(t, expectedValue, param.Value.StringVal, "mismatching value in the param %s", param.Name)
+				assert.Equal(t, pipelinev1.ParamTypeString, param.Value.Type, "mismatching type of the param %s", param.Name)
+			}
 		})
 	}
 }
