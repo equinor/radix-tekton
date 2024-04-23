@@ -18,10 +18,12 @@ import (
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
 )
 
 const (
 	appName              = "test-app"
+	env1                 = "dev"
 	branchMain           = "main"
 	radixImageTag        = "tag-123"
 	radixPipelineJobName = "pipeline-job-123"
@@ -32,7 +34,7 @@ var (
 	RadixApplication = `apiVersion: radix.equinor.com/v1
 kind: RadixApplication
 metadata: 
-  name: radix-application
+  name: test-app
 spec:
   environments:
   - name: dev
@@ -42,37 +44,24 @@ spec:
 
 func Test_RunPipeline_Has_ServiceAccount(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	mockEnv := env.NewMockEnv(mockCtrl)
-	mockEnv.EXPECT().GetAppName().Return(appName).AnyTimes()
-	mockEnv.EXPECT().GetRadixImageTag().Return(radixImageTag).AnyTimes()
-	mockEnv.EXPECT().GetRadixPipelineJobName().Return(radixPipelineJobName).AnyTimes()
-	mockEnv.EXPECT().GetBranch().Return(branchMain).AnyTimes()
-	mockEnv.EXPECT().GetAppNamespace().Return(utils.GetAppNamespace(appName)).AnyTimes()
-	mockEnv.EXPECT().GetRadixPipelineType().Return(radixv1.Deploy).AnyTimes()
-	mockEnv.EXPECT().GetRadixConfigMapName().Return(radixConfigMapName).AnyTimes()
-	mockEnv.EXPECT().GetRadixDeployToEnvironment().Return("dev").AnyTimes()
-	mockEnv.EXPECT().GetDNSConfig().Return(&dnsalias.DNSConfig{}).AnyTimes()
-	kubeclient, rxclient, tknclient := test.Setup()
-	waiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
-	waiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
-	ctx := pipeline.NewPipelineContext(kubeclient, rxclient, tknclient, mockEnv, pipeline.WithPipelineRunsWaiter(waiter))
+	env := mockEnv(mockCtrl)
+	kubeClient, rxClient, tknClient := test.Setup()
+	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
+	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+	ctx := pipeline.NewPipelineContext(kubeClient, rxClient, tknClient, env, pipeline.WithPipelineRunsWaiter(completionWaiter))
 
-	_, err := kubeclient.CoreV1().ConfigMaps(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &corev1.ConfigMap{
+	_, err := kubeClient.CoreV1().ConfigMaps(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: radixConfigMapName},
 		Data: map[string]string{
 			"content": RadixApplication,
 		},
 	}, metav1.CreateOptions{})
 	require.NoError(t, err)
-	_, err = rxclient.RadixV1().RadixRegistrations().Create(context.TODO(), &radixv1.RadixRegistration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "radix-application",
-		},
-		Spec: radixv1.RadixRegistrationSpec{},
-	}, metav1.CreateOptions{})
+	_, err = rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), &radixv1.RadixRegistration{
+		ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{}}, metav1.CreateOptions{})
 	require.NoError(t, err)
 
-	_, err = tknclient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
+	_, err = tknClient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   radixPipelineJobName,
 			Labels: labels.GetLabelsForEnvironment(ctx, "dev"),
@@ -84,11 +73,88 @@ func Test_RunPipeline_Has_ServiceAccount(t *testing.T) {
 	err = ctx.RunPipelinesJob()
 	require.NoError(t, err)
 
-	l, err := tknclient.TektonV1().PipelineRuns(ctx.GetEnv().GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
+	l, err := tknClient.TektonV1().PipelineRuns(ctx.GetEnv().GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, l.Items)
 
 	expected := utils.GetSubPipelineServiceAccountName("dev")
 	actual := l.Items[0].Spec.TaskRunTemplate.ServiceAccountName
 	assert.Equal(t, expected, actual)
+}
+
+func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
+	type scenario struct {
+		name             string
+		pipelineSpec     pipelinev1.PipelineSpec
+		appEnvBuilder    utils.ApplicationEnvironmentBuilder
+		buildSecrets     []string
+		buildVariables   radixv1.EnvVarsMap
+		buildSubPipeline utils.SubPipelineBuilder
+	}
+
+	scenarios := []scenario{
+		{name: "no env vars and secrets",
+			pipelineSpec:  pipelinev1.PipelineSpec{},
+			appEnvBuilder: utils.NewApplicationEnvironmentBuilder().WithName(env1),
+		},
+	}
+
+	for _, ts := range scenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			env := mockEnv(mockCtrl)
+			kubeClient, rxClient, tknClient := test.Setup()
+			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
+			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+			ctx := pipeline.NewPipelineContext(kubeClient, rxClient, tknClient, env, pipeline.WithPipelineRunsWaiter(completionWaiter))
+
+			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
+				WithBuildSecrets(ts.buildSecrets...).
+				WithBuildVariables(ts.buildVariables).
+				WithSubPipeline(ts.buildSubPipeline).
+				WithApplicationEnvironmentBuilders(ts.appEnvBuilder)
+			raContent, err := yaml.Marshal(raBuilder.BuildRA())
+			require.NoError(t, err)
+			_, err = rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), &radixv1.RadixRegistration{
+				ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{}}, metav1.CreateOptions{})
+			require.NoError(t, err)
+			_, err = kubeClient.CoreV1().ConfigMaps(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: radixConfigMapName},
+				Data: map[string]string{
+					"content": string(raContent),
+				},
+			}, metav1.CreateOptions{})
+
+			_, err = tknClient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
+				ObjectMeta: metav1.ObjectMeta{Name: radixPipelineJobName, Labels: labels.GetLabelsForEnvironment(ctx, "dev")},
+				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
+			require.NoError(t, err)
+
+			err = ctx.RunPipelinesJob()
+			require.NoError(t, err)
+
+			l, err := tknClient.TektonV1().PipelineRuns(ctx.GetEnv().GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
+			require.NoError(t, err)
+			assert.NotEmpty(t, l.Items)
+		})
+	}
+}
+
+func getAppBuilderWithBuildConfiguration(applicationEnvironmentBuilder utils.ApplicationEnvironmentBuilder) utils.ApplicationBuilder {
+	return utils.NewRadixApplicationBuilder().WithAppName(appName).WithApplicationEnvironmentBuilders(
+		applicationEnvironmentBuilder)
+}
+
+func mockEnv(mockCtrl *gomock.Controller) *env.MockEnv {
+	mockEnv := env.NewMockEnv(mockCtrl)
+	mockEnv.EXPECT().GetAppName().Return(appName).AnyTimes()
+	mockEnv.EXPECT().GetRadixImageTag().Return(radixImageTag).AnyTimes()
+	mockEnv.EXPECT().GetRadixPipelineJobName().Return(radixPipelineJobName).AnyTimes()
+	mockEnv.EXPECT().GetBranch().Return(branchMain).AnyTimes()
+	mockEnv.EXPECT().GetAppNamespace().Return(utils.GetAppNamespace(appName)).AnyTimes()
+	mockEnv.EXPECT().GetRadixPipelineType().Return(radixv1.Deploy).AnyTimes()
+	mockEnv.EXPECT().GetRadixConfigMapName().Return(radixConfigMapName).AnyTimes()
+	mockEnv.EXPECT().GetRadixDeployToEnvironment().Return(env1).AnyTimes()
+	mockEnv.EXPECT().GetDNSConfig().Return(&dnsalias.DNSConfig{}).AnyTimes()
+	return mockEnv
 }
