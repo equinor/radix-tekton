@@ -52,7 +52,11 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 	tektonPipelineBranch := ctx.env.GetBranch()
 	if ctx.GetEnv().GetRadixPipelineType() == radixv1.Deploy {
 		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.env.GetRadixDeployToEnvironment())
-		tektonPipelineBranch = re.Build.From
+		if re != nil && len(re.Build.From) > 0 {
+			tektonPipelineBranch = re.Build.From
+		} else {
+			tektonPipelineBranch = ctx.GetEnv().GetRadixConfigBranch() // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
+		}
 	}
 	log.Info().Msgf("Run tekton pipelines for the branch %s", tektonPipelineBranch)
 
@@ -167,12 +171,7 @@ func (ctx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipeline, tar
 		if !envVarExistInParamSpecs {
 			continue // Add to pipelineRun params only env-vars, existing in the pipeline paramSpecs
 		}
-		param := pipelinev1.Param{
-			Name: envVarName,
-			Value: pipelinev1.ParamValue{
-				Type: paramSpec.Type,
-			},
-		}
+		param := pipelinev1.Param{Name: envVarName, Value: pipelinev1.ParamValue{Type: paramSpec.Type}}
 		if param.Value.Type == pipelinev1.ParamTypeArray { // Param can contain a string value or a comma-separated values array
 			param.Value.ArrayVal = strings.Split(envVarValue, ",")
 		} else {
@@ -182,15 +181,7 @@ func (ctx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipeline, tar
 		delete(pipelineParamsMap, envVarName)
 	}
 	for paramName, paramSpec := range pipelineParamsMap {
-		param := pipelinev1.Param{
-			Name: paramName,
-			Value: pipelinev1.ParamValue{
-				Type:      paramSpec.Type,
-				StringVal: paramSpec.Default.StringVal,
-				ArrayVal:  paramSpec.Default.ArrayVal,
-				ObjectVal: paramSpec.Default.ObjectVal,
-			},
-		}
+		param := pipelinev1.Param{Name: paramName, Value: pipelinev1.ParamValue{Type: paramSpec.Type}}
 		if paramSpec.Default != nil {
 			param.Value.StringVal = paramSpec.Default.StringVal
 			param.Value.ArrayVal = paramSpec.Default.ArrayVal

@@ -65,23 +65,29 @@ func (ctx *pipelineContext) getEnvVars(targetEnv string) v1.EnvVarsMap {
 }
 
 func (ctx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap v1.EnvVarsMap) {
-	if ctx.radixApplication.Spec.Build == nil {
-		log.Debug().Msg("No RadixApplication build configurations found")
+	if ctx.radixApplication.Spec.Build != nil {
+		setBuildVariables(envVarsMap, ctx.radixApplication.Spec.Build.SubPipeline, ctx.radixApplication.Spec.Build.Variables)
+	}
+}
+
+func setBuildVariables(envVarsMap v1.EnvVarsMap, subPipeline *v1.SubPipeline, variables v1.EnvVarsMap) {
+	if subPipeline != nil {
+		setVariablesToEnvVarsMap(envVarsMap, subPipeline.Variables) // sub-pipeline variables have higher priority over build variables
 		return
 	}
+	setVariablesToEnvVarsMap(envVarsMap, variables) // keep for backward compatibility
+}
 
-	for name, envVar := range ctx.radixApplication.Spec.Build.Variables {
+func setVariablesToEnvVarsMap(envVarsMap v1.EnvVarsMap, variables v1.EnvVarsMap) {
+	for name, envVar := range variables {
 		envVarsMap[name] = envVar
 	}
 }
 
 func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv string, envVarsMap v1.EnvVarsMap) {
 	for _, buildEnv := range ctx.radixApplication.Spec.Environments {
-		if !strings.EqualFold(buildEnv.Name, targetEnv) {
-			continue
-		}
-		for envVarName, envVarVal := range buildEnv.Build.Variables {
-			envVarsMap[envVarName] = envVarVal // Overrides common env-vars from Spec.Build, if any
+		if strings.EqualFold(buildEnv.Name, targetEnv) {
+			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
 		}
 	}
 }

@@ -101,12 +101,54 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 			pipelineSpec: pipelinev1.PipelineSpec{
 				Params: []pipelinev1.ParamSpec{
 					{Name: "var1", Type: pipelinev1.ParamTypeString},
-					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3"}},
+					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
+					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
 				},
 			},
 			appEnvBuilder:                 []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1)},
-			buildVariables:                map[string]string{"var1": "value1", "var2": "value2"},
-			expectedPipelineRunParamNames: map[string]string{"var1": "value1", "var3": "value3"},
+			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common", "var3": "value3common"},
+			expectedPipelineRunParamNames: map[string]string{"var1": "value1common", "var3": "value3common", "var4": "value4default"},
+		},
+		{name: "task uses common env vars from sub-pipeline, ignores build variables",
+			pipelineSpec: pipelinev1.PipelineSpec{
+				Params: []pipelinev1.ParamSpec{
+					{Name: "var1", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value1default"}},
+					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
+					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
+					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
+				},
+			},
+			buildSubPipeline:              utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var3": "value3sp", "var4": "value4sp"}),
+			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common", "var3": "value3common"},
+			expectedPipelineRunParamNames: map[string]string{"var1": "value1default", "var3": "value3sp", "var4": "value4sp", "var5": "value5default"},
+		},
+		{name: "task uses environment env vars",
+			pipelineSpec: pipelinev1.PipelineSpec{
+				Params: []pipelinev1.ParamSpec{
+					{Name: "var1", Type: pipelinev1.ParamTypeString},
+					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
+					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
+					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
+				},
+			},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1).
+				WithEnvVars(map[string]string{"var3": "value3env", "var4": "value4env"})},
+			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common"},
+			expectedPipelineRunParamNames: map[string]string{"var1": "value1common", "var3": "value3env", "var4": "value4env", "var5": "value5default"},
+		},
+		{name: "task uses environment sub-pipeline env vars",
+			pipelineSpec: pipelinev1.PipelineSpec{
+				Params: []pipelinev1.ParamSpec{
+					{Name: "var1", Type: pipelinev1.ParamTypeString},
+					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
+					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
+					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
+				},
+			},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1).
+				WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var3": "value3sp-env", "var4": "value4sp-env"}))},
+			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common"},
+			expectedPipelineRunParamNames: map[string]string{"var1": "value1common", "var3": "value3sp-env", "var4": "value4sp-env", "var5": "value5default"},
 		},
 	}
 
@@ -174,5 +216,6 @@ func mockEnv(mockCtrl *gomock.Controller) *env.MockEnv {
 	mockEnv.EXPECT().GetRadixConfigMapName().Return(radixConfigMapName).AnyTimes()
 	mockEnv.EXPECT().GetRadixDeployToEnvironment().Return(env1).AnyTimes()
 	mockEnv.EXPECT().GetDNSConfig().Return(&dnsalias.DNSConfig{}).AnyTimes()
+	mockEnv.EXPECT().GetRadixConfigBranch().Return(env1).AnyTimes()
 	return mockEnv
 }
