@@ -30,6 +30,8 @@ const (
 	radixImageTag        = "tag-123"
 	radixPipelineJobName = "pipeline-job-123"
 	radixConfigMapName   = "cm-name"
+	azureClientIdEnvVar  = "AZURE_CLIENT_ID"
+	someAzureClientId    = "some-azure-client-id"
 )
 
 var (
@@ -66,7 +68,7 @@ func Test_RunPipeline_Has_ServiceAccount(t *testing.T) {
 	_, err = tknClient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   radixPipelineJobName,
-			Labels: labels.GetLabelsForEnvironment(ctx, "dev"),
+			Labels: labels.GetLabelsForEnvironment(ctx, env1),
 		},
 		Spec: pipelinev1.PipelineSpec{},
 	}, metav1.CreateOptions{})
@@ -79,7 +81,7 @@ func Test_RunPipeline_Has_ServiceAccount(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, l.Items)
 
-	expected := utils.GetSubPipelineServiceAccountName("dev")
+	expected := utils.GetSubPipelineServiceAccountName(env1)
 	actual := l.Items[0].Spec.TaskRunTemplate.ServiceAccountName
 	assert.Equal(t, expected, actual)
 }
@@ -231,11 +233,11 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 	for _, ts := range scenarios {
 		t.Run(ts.name, func(t *testing.T) {
 			mockCtrl := gomock.NewController(t)
-			env := mockEnv(mockCtrl)
+			envMock := mockEnv(mockCtrl)
 			kubeClient, rxClient, tknClient := test.Setup()
 			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
-			ctx := pipeline.NewPipelineContext(kubeClient, rxClient, tknClient, env, pipeline.WithPipelineRunsWaiter(completionWaiter))
+			ctx := pipeline.NewPipelineContext(kubeClient, rxClient, tknClient, envMock, pipeline.WithPipelineRunsWaiter(completionWaiter))
 
 			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
 				WithBuildVariables(ts.buildVariables).
@@ -277,9 +279,80 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 	}
 }
 
-func getAppBuilderWithBuildConfiguration(applicationEnvironmentBuilder utils.ApplicationEnvironmentBuilder) utils.ApplicationBuilder {
-	return utils.NewRadixApplicationBuilder().WithAppName(appName).WithApplicationEnvironmentBuilders(
-		applicationEnvironmentBuilder)
+func Test_RunPipeline_ApplyIdentity(t *testing.T) {
+	type scenario struct {
+		name                          string
+		pipelineSpec                  pipelinev1.PipelineSpec
+		appEnvBuilder                 []utils.ApplicationEnvironmentBuilder
+		buildIdentity                 *radixv1.Identity
+		buildSubPipeline              utils.SubPipelineBuilder
+		expectedPipelineRunParamNames map[string]string
+	}
+
+	scenarios := []scenario{
+		{name: "no env vars and secrets",
+			pipelineSpec:  pipelinev1.PipelineSpec{},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1)},
+		},
+		{name: "task uses common env vars",
+			pipelineSpec: pipelinev1.PipelineSpec{
+				Params: []pipelinev1.ParamSpec{
+					{Name: azureClientIdEnvVar, Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "not-set"}},
+				},
+			},
+			appEnvBuilder:                 []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1)},
+			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: someAzureClientId}},
+			expectedPipelineRunParamNames: map[string]string{azureClientIdEnvVar: someAzureClientId},
+		},
+	}
+
+	for _, ts := range scenarios {
+		t.Run(ts.name, func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			envMock := mockEnv(mockCtrl)
+			kubeClient, rxClient, tknClient := test.Setup()
+			completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
+			completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
+			ctx := pipeline.NewPipelineContext(kubeClient, rxClient, tknClient, envMock, pipeline.WithPipelineRunsWaiter(completionWaiter))
+
+			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
+				WithApplicationEnvironmentBuilders(ts.appEnvBuilder...)
+			if ts.buildIdentity != nil {
+				raBuilder = raBuilder.WithSubPipeline(utils.NewSubPipelineBuilder().WithIdentity(ts.buildIdentity))
+			}
+			raContent, err := yaml.Marshal(raBuilder.BuildRA())
+			require.NoError(t, err)
+			_, err = rxClient.RadixV1().RadixRegistrations().Create(context.TODO(), &radixv1.RadixRegistration{
+				ObjectMeta: metav1.ObjectMeta{Name: appName}, Spec: radixv1.RadixRegistrationSpec{}}, metav1.CreateOptions{})
+			require.NoError(t, err)
+			_, err = kubeClient.CoreV1().ConfigMaps(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: radixConfigMapName},
+				Data: map[string]string{
+					"content": string(raContent),
+				},
+			}, metav1.CreateOptions{})
+
+			_, err = tknClient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
+				ObjectMeta: metav1.ObjectMeta{Name: radixPipelineJobName, Labels: labels.GetLabelsForEnvironment(ctx, env1)},
+				Spec:       ts.pipelineSpec}, metav1.CreateOptions{})
+			require.NoError(t, err)
+
+			err = ctx.RunPipelinesJob()
+			require.NoError(t, err)
+
+			pipelineRunList, err := tknClient.TektonV1().PipelineRuns(ctx.GetEnv().GetAppNamespace()).List(context.TODO(), metav1.ListOptions{})
+			require.NoError(t, err)
+			assert.Len(t, pipelineRunList.Items, 1)
+			pr := pipelineRunList.Items[0]
+			assert.Len(t, pr.Spec.Params, len(ts.expectedPipelineRunParamNames), "mismatching pipelineRun.Spec.Params element count")
+			for _, param := range pr.Spec.Params {
+				expectedValue, ok := ts.expectedPipelineRunParamNames[param.Name]
+				assert.True(t, ok, "unexpected param %s", param.Name)
+				assert.Equal(t, expectedValue, param.Value.StringVal, "mismatching value in the param %s", param.Name)
+				assert.Equal(t, pipelinev1.ParamTypeString, param.Value.Type, "mismatching type of the param %s", param.Name)
+			}
+		})
+	}
 }
 
 func mockEnv(mockCtrl *gomock.Controller) *env.MockEnv {
