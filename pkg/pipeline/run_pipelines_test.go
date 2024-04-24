@@ -285,6 +285,7 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 		name                          string
 		pipelineSpec                  pipelinev1.PipelineSpec
 		appEnvBuilder                 []utils.ApplicationEnvironmentBuilder
+		buildVariables                radixv1.EnvVarsMap
 		buildIdentity                 *radixv1.Identity
 		buildSubPipeline              utils.SubPipelineBuilder
 		expectedPipelineRunParamNames map[string]string
@@ -311,6 +312,49 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: someAzureClientId}},
 			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: someAzureClientId},
 		},
+		{name: "task uses build environment env-var instead of common identity clientId",
+			pipelineSpec: pipelinev1.PipelineSpec{},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1).
+				WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"})},
+			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}},
+			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
+		},
+		{name: "task uses build environment sub-pipeline env-var instead of common identity clientId",
+			pipelineSpec: pipelinev1.PipelineSpec{},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1).
+				WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"}))},
+			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}},
+			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
+		},
+		{name: "task uses build environment sub-pipeline env-var instead of common identity clientId",
+			pipelineSpec: pipelinev1.PipelineSpec{},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1).
+				WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"}))},
+			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}},
+			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
+		},
+		{name: "task uses build environment sub-pipeline env-var instead of environment sub-pipeline identity clientId",
+			pipelineSpec: pipelinev1.PipelineSpec{},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1).
+				WithSubPipeline(utils.NewSubPipelineBuilder().
+					WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"}).
+					WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}}))},
+			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
+		},
+		{name: "task uses build environment sub-pipeline identity clientId instead of build env-var",
+			pipelineSpec: pipelinev1.PipelineSpec{},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1).
+				WithSubPipeline(utils.NewSubPipelineBuilder().WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}}))},
+			buildVariables:                map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"},
+			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-identity-client-id"},
+		},
+		{name: "task uses build environment sub-pipeline identity clientId instead of build sub-pipeline env-var",
+			pipelineSpec: pipelinev1.PipelineSpec{},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1).
+				WithSubPipeline(utils.NewSubPipelineBuilder().WithIdentity(&radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: "build-identity-client-id"}}))},
+			buildSubPipeline:              utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-env-var-client-id"}),
+			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: "build-identity-client-id"},
+		},
 	}
 
 	for _, ts := range scenarios {
@@ -323,6 +367,7 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 			ctx := pipeline.NewPipelineContext(kubeClient, rxClient, tknClient, envMock, pipeline.WithPipelineRunsWaiter(completionWaiter))
 
 			raBuilder := utils.NewRadixApplicationBuilder().WithAppName(appName).
+				WithBuildVariables(ts.buildVariables).
 				WithApplicationEnvironmentBuilders(ts.appEnvBuilder...)
 			if ts.buildIdentity != nil {
 				raBuilder = raBuilder.WithSubPipeline(utils.NewSubPipelineBuilder().WithIdentity(ts.buildIdentity))
