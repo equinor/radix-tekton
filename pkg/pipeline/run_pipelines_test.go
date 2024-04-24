@@ -98,7 +98,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 	}
 
 	scenarios := []scenario{
-		{name: "no env vars and secrets",
+		{name: "no env vars",
 			pipelineSpec:  pipelinev1.PipelineSpec{},
 			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1)},
 		},
@@ -291,16 +291,22 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 	}
 
 	scenarios := []scenario{
-		{name: "no env vars and secrets",
+		{name: "no identity",
 			pipelineSpec:  pipelinev1.PipelineSpec{},
 			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1)},
 		},
-		{name: "task uses common env vars",
+		{name: "task overrides param with common identity clientId",
 			pipelineSpec: pipelinev1.PipelineSpec{
 				Params: []pipelinev1.ParamSpec{
 					{Name: defaults.AzureClientIdEnvironmentVariable, Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "not-set"}},
 				},
 			},
+			appEnvBuilder:                 []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1)},
+			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: someAzureClientId}},
+			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: someAzureClientId},
+		},
+		{name: "task sets param with common identity clientId",
+			pipelineSpec:                  pipelinev1.PipelineSpec{},
 			appEnvBuilder:                 []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1)},
 			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: someAzureClientId}},
 			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: someAzureClientId},
