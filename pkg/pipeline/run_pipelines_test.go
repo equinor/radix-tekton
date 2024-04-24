@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"testing"
 
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-operator/pkg/apis/utils"
+	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/internal/wait"
 	"github.com/equinor/radix-tekton/pkg/models/env"
 	"github.com/equinor/radix-tekton/pkg/pipeline"
@@ -30,7 +32,6 @@ const (
 	radixImageTag        = "tag-123"
 	radixPipelineJobName = "pipeline-job-123"
 	radixConfigMapName   = "cm-name"
-	azureClientIdEnvVar  = "AZURE_CLIENT_ID"
 	someAzureClientId    = "some-azure-client-id"
 )
 
@@ -48,16 +49,16 @@ spec:
 
 func Test_RunPipeline_Has_ServiceAccount(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	env := mockEnv(mockCtrl)
+	envMock := mockEnv(mockCtrl)
 	kubeClient, rxClient, tknClient := test.Setup()
 	completionWaiter := wait.NewMockPipelineRunsCompletionWaiter(mockCtrl)
 	completionWaiter.EXPECT().Wait(gomock.Any(), gomock.Any()).AnyTimes()
-	ctx := pipeline.NewPipelineContext(kubeClient, rxClient, tknClient, env, pipeline.WithPipelineRunsWaiter(completionWaiter))
+	ctx := pipeline.NewPipelineContext(kubeClient, rxClient, tknClient, envMock, pipeline.WithPipelineRunsWaiter(completionWaiter))
 
 	_, err := kubeClient.CoreV1().ConfigMaps(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: radixConfigMapName},
 		Data: map[string]string{
-			"content": RadixApplication,
+			pipelineDefaults.PipelineConfigMapContent: RadixApplication,
 		},
 	}, metav1.CreateOptions{})
 	require.NoError(t, err)
@@ -297,12 +298,12 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 		{name: "task uses common env vars",
 			pipelineSpec: pipelinev1.PipelineSpec{
 				Params: []pipelinev1.ParamSpec{
-					{Name: azureClientIdEnvVar, Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "not-set"}},
+					{Name: defaults.AzureClientIdEnvironmentVariable, Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "not-set"}},
 				},
 			},
 			appEnvBuilder:                 []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1)},
 			buildIdentity:                 &radixv1.Identity{Azure: &radixv1.AzureIdentity{ClientId: someAzureClientId}},
-			expectedPipelineRunParamNames: map[string]string{azureClientIdEnvVar: someAzureClientId},
+			expectedPipelineRunParamNames: map[string]string{defaults.AzureClientIdEnvironmentVariable: someAzureClientId},
 		},
 	}
 

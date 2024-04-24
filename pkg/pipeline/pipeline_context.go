@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/internal/wait"
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
@@ -65,9 +66,11 @@ func (ctx *pipelineContext) getEnvVars(targetEnv string) v1.EnvVarsMap {
 }
 
 func (ctx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap v1.EnvVarsMap) {
-	if ctx.radixApplication.Spec.Build != nil {
-		setBuildVariables(envVarsMap, ctx.radixApplication.Spec.Build.SubPipeline, ctx.radixApplication.Spec.Build.Variables)
+	if ctx.radixApplication.Spec.Build == nil {
+		return
 	}
+	setBuildIdentity(envVarsMap, ctx.radixApplication.Spec.Build.SubPipeline)
+	setBuildVariables(envVarsMap, ctx.radixApplication.Spec.Build.SubPipeline, ctx.radixApplication.Spec.Build.Variables)
 }
 
 func setBuildVariables(envVarsMap v1.EnvVarsMap, subPipeline *v1.SubPipeline, variables v1.EnvVarsMap) {
@@ -84,9 +87,22 @@ func setVariablesToEnvVarsMap(envVarsMap v1.EnvVarsMap, variables v1.EnvVarsMap)
 	}
 }
 
+func setBuildIdentity(envVarsMap v1.EnvVarsMap, subPipeline *v1.SubPipeline) {
+	if subPipeline != nil {
+		setIdentityToEnvVarsMap(envVarsMap, subPipeline.Identity)
+	}
+}
+
+func setIdentityToEnvVarsMap(envVarsMap v1.EnvVarsMap, identity *v1.Identity) {
+	if identity != nil && identity.Azure != nil && len(identity.Azure.ClientId) > 0 {
+		envVarsMap[defaults.AzureClientIdEnvironmentVariable] = identity.Azure.ClientId // if build env-var or build environment env-var have this variable explicitly set, it will override this identity set env-var
+	}
+}
+
 func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv string, envVarsMap v1.EnvVarsMap) {
 	for _, buildEnv := range ctx.radixApplication.Spec.Environments {
 		if strings.EqualFold(buildEnv.Name, targetEnv) {
+			setBuildIdentity(envVarsMap, buildEnv.SubPipeline)
 			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
 		}
 	}
