@@ -253,7 +253,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 			_, err = kubeClient.CoreV1().ConfigMaps(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{Name: radixConfigMapName},
 				Data: map[string]string{
-					"content": string(raContent),
+					pipelineDefaults.PipelineConfigMapContent: string(raContent),
 				},
 			}, metav1.CreateOptions{})
 
@@ -394,7 +394,7 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 			_, err = kubeClient.CoreV1().ConfigMaps(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{Name: radixConfigMapName},
 				Data: map[string]string{
-					"content": string(raContent),
+					pipelineDefaults.PipelineConfigMapContent: string(raContent),
 				},
 			}, metav1.CreateOptions{})
 
