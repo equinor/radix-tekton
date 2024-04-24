@@ -136,7 +136,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common"},
 			expectedPipelineRunParamNames: map[string]string{"var1": "value1common", "var3": "value3env", "var4": "value4env", "var5": "value5default"},
 		},
-		{name: "task uses environment sub-pipeline env vars",
+		{name: "task uses environment sub-pipeline env vars, ignores environment build variables",
 			pipelineSpec: pipelinev1.PipelineSpec{
 				Params: []pipelinev1.ParamSpec{
 					{Name: "var1", Type: pipelinev1.ParamTypeString},
@@ -149,6 +149,36 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 				WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var3": "value3sp-env", "var4": "value4sp-env"}))},
 			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common"},
 			expectedPipelineRunParamNames: map[string]string{"var1": "value1common", "var3": "value3sp-env", "var4": "value4sp-env", "var5": "value5default"},
+		},
+		{name: "task uses environment sub-pipeline env vars, build sub-pipeline env vars, ignores environment build variables and build env vars",
+			pipelineSpec: pipelinev1.PipelineSpec{
+				Params: []pipelinev1.ParamSpec{
+					{Name: "var1", Type: pipelinev1.ParamTypeString},
+					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
+					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
+					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
+				},
+			},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1).
+				WithSubPipeline(utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var3": "value3sp-env", "var4": "value4sp-env"}))},
+			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common", "var4": "value4common"},
+			buildSubPipeline:              utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var1": "value1sp", "var4": "value4sp"}),
+			expectedPipelineRunParamNames: map[string]string{"var1": "value1sp", "var3": "value3sp-env", "var4": "value4sp-env", "var5": "value5default"},
+		},
+		{name: "task uses environment env vars, build sub-pipeline env vars, ignores environment build variables and build env vars",
+			pipelineSpec: pipelinev1.PipelineSpec{
+				Params: []pipelinev1.ParamSpec{
+					{Name: "var1", Type: pipelinev1.ParamTypeString},
+					{Name: "var3", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value3default"}},
+					{Name: "var4", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value4default"}},
+					{Name: "var5", Type: pipelinev1.ParamTypeString, Default: &pipelinev1.ParamValue{StringVal: "value5default"}},
+				},
+			},
+			appEnvBuilder: []utils.ApplicationEnvironmentBuilder{utils.NewApplicationEnvironmentBuilder().WithName(env1).
+				WithEnvVars(map[string]string{"var3": "value3env", "var4": "value4env"})},
+			buildVariables:                map[string]string{"var1": "value1common", "var2": "value2common", "var4": "value4common"},
+			buildSubPipeline:              utils.NewSubPipelineBuilder().WithEnvVars(map[string]string{"var1": "value1sp", "var4": "value4sp"}),
+			expectedPipelineRunParamNames: map[string]string{"var1": "value1sp", "var3": "value3env", "var4": "value4env", "var5": "value5default"},
 		},
 	}
 
