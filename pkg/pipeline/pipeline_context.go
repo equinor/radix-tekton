@@ -96,6 +96,8 @@ func setBuildIdentity(envVarsMap v1.EnvVarsMap, subPipeline *v1.SubPipeline) {
 func setIdentityToEnvVarsMap(envVarsMap v1.EnvVarsMap, identity *v1.Identity) {
 	if identity != nil && identity.Azure != nil && len(identity.Azure.ClientId) > 0 {
 		envVarsMap[defaults.AzureClientIdEnvironmentVariable] = identity.Azure.ClientId // if build env-var or build environment env-var have this variable explicitly set, it will override this identity set env-var
+	} else {
+		delete(envVarsMap, defaults.AzureClientIdEnvironmentVariable)
 	}
 }
 
