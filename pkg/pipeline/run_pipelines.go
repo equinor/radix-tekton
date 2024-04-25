@@ -163,7 +163,7 @@ func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
 }
 
 func (ctx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipeline, targetEnv string) []pipelinev1.Param {
-	envVars := ctx.getEnvVars(targetEnv)
+	envVars := ctx.GetEnvVars(targetEnv)
 	pipelineParamsMap := getPipelineParamSpecsMap(pipeline)
 	var pipelineParams []pipelinev1.Param
 	for envVarName, envVarValue := range envVars {

@@ -58,10 +58,10 @@ func (ctx *pipelineContext) GetPipelineRunsWaiter() wait.PipelineRunsCompletionW
 	return ctx.waiter
 }
 
-func (ctx *pipelineContext) getEnvVars(targetEnv string) v1.EnvVarsMap {
+func (ctx *pipelineContext) GetEnvVars(envName string) v1.EnvVarsMap {
 	envVarsMap := make(v1.EnvVarsMap)
 	ctx.setPipelineRunParamsFromBuild(envVarsMap)
-	ctx.setPipelineRunParamsFromEnvironmentBuilds(targetEnv, envVarsMap)
+	ctx.setPipelineRunParamsFromEnvironmentBuilds(envName, envVarsMap)
 	return envVarsMap
 }
 
