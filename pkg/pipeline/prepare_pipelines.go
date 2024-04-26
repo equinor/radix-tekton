@@ -556,7 +556,7 @@ func ensureAzureClientIdParamExistInTaskParams(pipeline *pipelinev1.Pipeline, pi
 }
 
 func addAzureIdentityClientIdParamToPipeline(pipeline *pipelinev1.Pipeline) {
-	pipeline.Spec.Params = append(pipeline.Spec.Params, pipelinev1.ParamSpec{Name: defaults.AzureClientIdEnvironmentVariable, Type: pipelinev1.ParamTypeString, Description: "Azure workload identity client-id"})
+	pipeline.Spec.Params = append(pipeline.Spec.Params, pipelinev1.ParamSpec{Name: defaults.AzureClientIdEnvironmentVariable, Type: pipelinev1.ParamTypeString, Description: "Defines the Client ID for a user defined managed identity or application ID for an application registration"})
 }
 
 func pipelineHasAzureIdentityClientIdParam(pipeline *pipelinev1.Pipeline) bool {
