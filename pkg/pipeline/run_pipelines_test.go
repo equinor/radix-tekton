@@ -256,6 +256,7 @@ func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
 					pipelineDefaults.PipelineConfigMapContent: string(raContent),
 				},
 			}, metav1.CreateOptions{})
+			require.NoError(t, err)
 
 			_, err = tknClient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 				ObjectMeta: metav1.ObjectMeta{Name: radixPipelineJobName, Labels: labels.GetLabelsForEnvironment(ctx, env1)},
@@ -397,6 +398,7 @@ func Test_RunPipeline_ApplyIdentity(t *testing.T) {
 					pipelineDefaults.PipelineConfigMapContent: string(raContent),
 				},
 			}, metav1.CreateOptions{})
+			require.NoError(t, err)
 
 			_, err = tknClient.TektonV1().Pipelines(ctx.GetEnv().GetAppNamespace()).Create(context.TODO(), &pipelinev1.Pipeline{
 				ObjectMeta: metav1.ObjectMeta{Name: radixPipelineJobName, Labels: labels.GetLabelsForEnvironment(ctx, env1)},
