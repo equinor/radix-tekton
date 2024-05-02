@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	"github.com/equinor/radix-tekton/pkg/models/env"
@@ -65,7 +66,7 @@ func GetRadixConfigFromConfigMap(kubeClient kubernetes.Interface, namespace, con
 	if configMap.Data == nil {
 		return "", getNoRadixConfigInConfigMap(configMapName)
 	}
-	content, ok := configMap.Data["content"]
+	content, ok := configMap.Data[pipelineDefaults.PipelineConfigMapContent]
 	if !ok {
 		return "", getNoRadixConfigInConfigMap(configMapName)
 	}

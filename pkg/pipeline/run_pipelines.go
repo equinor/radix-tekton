@@ -52,7 +52,11 @@ func (ctx *pipelineContext) RunPipelinesJob() error {
 	tektonPipelineBranch := ctx.env.GetBranch()
 	if ctx.GetEnv().GetRadixPipelineType() == radixv1.Deploy {
 		re := applicationconfig.GetEnvironmentFromRadixApplication(ctx.radixApplication, ctx.env.GetRadixDeployToEnvironment())
-		tektonPipelineBranch = re.Build.From
+		if re != nil && len(re.Build.From) > 0 {
+			tektonPipelineBranch = re.Build.From
+		} else {
+			tektonPipelineBranch = ctx.GetEnv().GetRadixConfigBranch() // if the branch for the deploy-toEnvironment is not defined - fallback to the config branch
+		}
 	}
 	log.Info().Msgf("Run tekton pipelines for the branch %s", tektonPipelineBranch)
 
@@ -159,28 +163,44 @@ func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
 }
 
 func (ctx *pipelineContext) getPipelineParams(pipeline *pipelinev1.Pipeline, targetEnv string) []pipelinev1.Param {
-	envVars := ctx.getEnvVars(targetEnv)
+	envVars := ctx.GetEnvVars(targetEnv)
 	pipelineParamsMap := getPipelineParamSpecsMap(pipeline)
 	var pipelineParams []pipelinev1.Param
 	for envVarName, envVarValue := range envVars {
-		paramSpec, envVarExistInParamSpecs := pipelineParamsMap[envVarName]
+		paramSpec, envVarExistInParamSpecs := getPipelineParamSpec(pipelineParamsMap, envVarName)
 		if !envVarExistInParamSpecs {
-			continue // Add to pipelineRun params only env-vars, existing in the pipeline paramSpecs
+			continue // Add to pipelineRun params only env-vars, existing in the pipeline paramSpecs or Azure identity clientId
 		}
-		param := pipelinev1.Param{
-			Name: envVarName,
-			Value: pipelinev1.ParamValue{
-				Type: paramSpec.Type,
-			},
-		}
+		param := pipelinev1.Param{Name: envVarName, Value: pipelinev1.ParamValue{Type: paramSpec.Type}}
 		if param.Value.Type == pipelinev1.ParamTypeArray { // Param can contain a string value or a comma-separated values array
 			param.Value.ArrayVal = strings.Split(envVarValue, ",")
 		} else {
 			param.Value.StringVal = envVarValue
 		}
 		pipelineParams = append(pipelineParams, param)
+		delete(pipelineParamsMap, envVarName)
+	}
+	for paramName, paramSpec := range pipelineParamsMap {
+		if paramName == defaults.AzureClientIdEnvironmentVariable && len(envVars[defaults.AzureClientIdEnvironmentVariable]) > 0 {
+			continue // Azure identity clientId was set by radixconfig build env-var or identity
+		}
+		param := pipelinev1.Param{Name: paramName, Value: pipelinev1.ParamValue{Type: paramSpec.Type}}
+		if paramSpec.Default != nil {
+			param.Value.StringVal = paramSpec.Default.StringVal
+			param.Value.ArrayVal = paramSpec.Default.ArrayVal
+			param.Value.ObjectVal = paramSpec.Default.ObjectVal
+		}
+		pipelineParams = append(pipelineParams, param)
 	}
 	return pipelineParams
+}
+
+func getPipelineParamSpec(pipelineParamsMap map[string]pipelinev1.ParamSpec, envVarName string) (pipelinev1.ParamSpec, bool) {
+	if envVarName == defaults.AzureClientIdEnvironmentVariable {
+		return pipelinev1.ParamSpec{Name: envVarName, Type: pipelinev1.ParamTypeString}, true
+	}
+	paramSpec, ok := pipelineParamsMap[envVarName]
+	return paramSpec, ok
 }
 
 func getPipelineParamSpecsMap(pipeline *pipelinev1.Pipeline) map[string]pipelinev1.ParamSpec {

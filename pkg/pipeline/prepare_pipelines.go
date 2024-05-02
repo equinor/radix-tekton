@@ -13,6 +13,7 @@ import (
 
 	commonUtils "github.com/equinor/radix-common/utils"
 	"github.com/equinor/radix-common/utils/maps"
+	"github.com/equinor/radix-common/utils/slice"
 	"github.com/equinor/radix-operator/pipeline-runner/model"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
@@ -378,13 +379,21 @@ func (ctx *pipelineContext) createPipeline(envName string, pipeline *pipelinev1.
 		errs = append(errs, fmt.Errorf("failed to build task for pipeline %s: %w", originalPipelineName, err))
 	}
 
-	for i, pipelineSpecTask := range pipeline.Spec.Tasks {
+	_, azureClientIdPipelineParamExist := ctx.GetEnvVars(envName)[defaults.AzureClientIdEnvironmentVariable]
+	if azureClientIdPipelineParamExist {
+		ensureAzureClientIdParamExistInPipelineParams(pipeline)
+	}
+
+	for taskIndex, pipelineSpecTask := range pipeline.Spec.Tasks {
 		task, ok := taskMap[pipelineSpecTask.TaskRef.Name]
 		if !ok {
 			errs = append(errs, fmt.Errorf("task %s has not been created", pipelineSpecTask.Name))
 			continue
 		}
-		pipeline.Spec.Tasks[i].TaskRef = &pipelinev1.TaskRef{Name: task.Name}
+		pipeline.Spec.Tasks[taskIndex].TaskRef = &pipelinev1.TaskRef{Name: task.Name}
+		if azureClientIdPipelineParamExist {
+			ensureAzureClientIdParamExistInTaskParams(pipeline, taskIndex, task)
+		}
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
@@ -532,4 +541,44 @@ func addGitDeployKeyVolume(task *pipelinev1.Task) {
 
 func taskIsValid(task *pipelinev1.Task) bool {
 	return strings.HasPrefix(task.APIVersion, "tekton.dev/") && task.Kind == "Task" && len(task.ObjectMeta.Name) > 1
+}
+
+func ensureAzureClientIdParamExistInPipelineParams(pipeline *pipelinev1.Pipeline) {
+	if !pipelineHasAzureIdentityClientIdParam(pipeline) {
+		addAzureIdentityClientIdParamToPipeline(pipeline)
+	}
+}
+
+func ensureAzureClientIdParamExistInTaskParams(pipeline *pipelinev1.Pipeline, pipelineTaskIndex int, task pipelinev1.Task) {
+	if taskHasAzureIdentityClientIdParam(task) && !pipelineTaskHasAzureIdentityClientIdParam(pipeline, pipelineTaskIndex) {
+		addAzureIdentityClientIdParamToPipelineTask(pipeline, pipelineTaskIndex)
+	}
+}
+
+func addAzureIdentityClientIdParamToPipeline(pipeline *pipelinev1.Pipeline) {
+	pipeline.Spec.Params = append(pipeline.Spec.Params, pipelinev1.ParamSpec{Name: defaults.AzureClientIdEnvironmentVariable, Type: pipelinev1.ParamTypeString, Description: "Defines the Client ID for a user defined managed identity or application ID for an application registration"})
+}
+
+func pipelineHasAzureIdentityClientIdParam(pipeline *pipelinev1.Pipeline) bool {
+	return slice.Any(pipeline.Spec.Params, func(paramSpec pipelinev1.ParamSpec) bool {
+		return paramSpec.Name == defaults.AzureClientIdEnvironmentVariable
+	})
+}
+
+func addAzureIdentityClientIdParamToPipelineTask(pipeline *pipelinev1.Pipeline, taskIndex int) {
+	pipeline.Spec.Tasks[taskIndex].Params = append(pipeline.Spec.Tasks[taskIndex].Params,
+		pipelinev1.Param{
+			Name:  defaults.AzureClientIdEnvironmentVariable,
+			Value: pipelinev1.ParamValue{Type: pipelinev1.ParamTypeString, StringVal: fmt.Sprintf("$(params.%s)", defaults.AzureClientIdEnvironmentVariable)},
+		})
+}
+
+func taskHasAzureIdentityClientIdParam(task pipelinev1.Task) bool {
+	return slice.Any(task.Spec.Params, func(paramSpec pipelinev1.ParamSpec) bool {
+		return paramSpec.Name == defaults.AzureClientIdEnvironmentVariable
+	})
+}
+
+func pipelineTaskHasAzureIdentityClientIdParam(pipeline *pipelinev1.Pipeline, taskIndex int) bool {
+	return slice.Any(pipeline.Spec.Tasks[taskIndex].Params, func(param pipelinev1.Param) bool { return param.Name == defaults.AzureClientIdEnvironmentVariable })
 }
