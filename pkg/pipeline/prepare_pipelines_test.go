@@ -369,11 +369,11 @@ func Test_ComponentHasChangedSource(t *testing.T) {
 func Test_pipelineContext_createPipeline(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	type fields struct {
-		env                env.Env
-		radixApplication   *v1.RadixApplication
-		targetEnvironments map[string]bool
-		hash               string
-		ownerReference     *metav1.OwnerReference
+		env                     env.Env
+		radixApplicationBuilder utils.ApplicationBuilder
+		targetEnvironments      map[string]bool
+		hash                    string
+		ownerReference          *metav1.OwnerReference
 	}
 	type args struct {
 		envName   string
@@ -816,18 +816,19 @@ func Test_pipelineContext_createPipeline(t *testing.T) {
 	}
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
+			applicationBuilder := scenario.fields.radixApplicationBuilder
+			if applicationBuilder == nil {
+				applicationBuilder = getRadixApplicationBuilder(appName, envDev, branchMain)
+			}
 			ctx := &pipelineContext{
 				radixClient:        radixclientfake.NewSimpleClientset(),
 				kubeClient:         kubeclientfake.NewSimpleClientset(),
 				tektonClient:       tektonclientfake.NewSimpleClientset(),
 				env:                scenario.fields.env,
-				radixApplication:   scenario.fields.radixApplication,
+				radixApplication:   applicationBuilder.BuildRA(),
 				targetEnvironments: scenario.fields.targetEnvironments,
 				hash:               scenario.fields.hash,
 				ownerReference:     scenario.fields.ownerReference,
-			}
-			if ctx.radixApplication == nil {
-				ctx.radixApplication = getRadixApplication(appName, envDev, branchMain)
 			}
 			if ctx.env == nil {
 				ctx.env = getEnvMock(mockCtrl, func(mockEnv *env.MockEnv) {
@@ -876,11 +877,14 @@ func getTestPipeline(modify func(pipeline *pipelinev1.Pipeline)) *pipelinev1.Pip
 	return task
 }
 
-func getRadixApplication(appName, environment, buildFrom string) *v1.RadixApplication {
+func getRadixApplicationBuilder(appName, environment, buildFrom string) utils.ApplicationBuilder {
 	return utils.NewRadixApplicationBuilder().WithAppName(appName).
 		WithEnvironment(environment, buildFrom).
-		WithComponent(utils.NewApplicationComponentBuilder().WithName("comp1").WithPort("http", 8080).WithPublicPort("http")).
-		BuildRA()
+		WithComponent(getComponentBuilder())
+}
+
+func getComponentBuilder() utils.RadixApplicationComponentBuilder {
+	return utils.NewApplicationComponentBuilder().WithName("comp1").WithPort("http", 8080).WithPublicPort("http")
 }
 
 func getTestTask(modify func(task *pipelinev1.Task)) *pipelinev1.Task {

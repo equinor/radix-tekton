@@ -26,4 +26,6 @@ type Context interface {
 	GetRadixApplication() *v1.RadixApplication
 	// GetPipelineRunsWaiter Returns a waiter that returns when all pipelineruns have completed
 	GetPipelineRunsWaiter() wait.PipelineRunsCompletionWaiter
+	// GetEnvVars Gets build env vars
+	GetEnvVars(envName string) v1.EnvVarsMap
 }

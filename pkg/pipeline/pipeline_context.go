@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/equinor/radix-tekton/pkg/defaults"
 	"github.com/equinor/radix-tekton/pkg/internal/wait"
 	"github.com/equinor/radix-tekton/pkg/utils/git"
 	"github.com/equinor/radix-tekton/pkg/utils/radix/applicationconfig"
@@ -57,33 +58,57 @@ func (ctx *pipelineContext) GetPipelineRunsWaiter() wait.PipelineRunsCompletionW
 	return ctx.waiter
 }
 
-func (ctx *pipelineContext) getEnvVars(targetEnv string) v1.EnvVarsMap {
+func (ctx *pipelineContext) GetEnvVars(envName string) v1.EnvVarsMap {
 	envVarsMap := make(v1.EnvVarsMap)
 	ctx.setPipelineRunParamsFromBuild(envVarsMap)
-	ctx.setPipelineRunParamsFromEnvironmentBuilds(targetEnv, envVarsMap)
+	ctx.setPipelineRunParamsFromEnvironmentBuilds(envName, envVarsMap)
 	return envVarsMap
 }
 
 func (ctx *pipelineContext) setPipelineRunParamsFromBuild(envVarsMap v1.EnvVarsMap) {
-	if ctx.radixApplication.Spec.Build == nil ||
-		ctx.radixApplication.Spec.Build.Variables == nil ||
-		len(ctx.radixApplication.Spec.Build.Variables) == 0 {
-		log.Debug().Msg("No radixApplication build variables")
+	if ctx.radixApplication.Spec.Build == nil {
 		return
 	}
+	setBuildIdentity(envVarsMap, ctx.radixApplication.Spec.Build.SubPipeline)
+	setBuildVariables(envVarsMap, ctx.radixApplication.Spec.Build.SubPipeline, ctx.radixApplication.Spec.Build.Variables)
+}
 
-	for name, envVar := range ctx.radixApplication.Spec.Build.Variables {
+func setBuildVariables(envVarsMap v1.EnvVarsMap, subPipeline *v1.SubPipeline, variables v1.EnvVarsMap) {
+	if subPipeline != nil {
+		setVariablesToEnvVarsMap(envVarsMap, subPipeline.Variables) // sub-pipeline variables have higher priority over build variables
+		return
+	}
+	setVariablesToEnvVarsMap(envVarsMap, variables) // keep for backward compatibility
+}
+
+func setVariablesToEnvVarsMap(envVarsMap v1.EnvVarsMap, variables v1.EnvVarsMap) {
+	for name, envVar := range variables {
 		envVarsMap[name] = envVar
+	}
+}
+
+func setBuildIdentity(envVarsMap v1.EnvVarsMap, subPipeline *v1.SubPipeline) {
+	if subPipeline != nil {
+		setIdentityToEnvVarsMap(envVarsMap, subPipeline.Identity)
+	}
+}
+
+func setIdentityToEnvVarsMap(envVarsMap v1.EnvVarsMap, identity *v1.Identity) {
+	if identity == nil || identity.Azure == nil {
+		return
+	}
+	if len(identity.Azure.ClientId) > 0 {
+		envVarsMap[defaults.AzureClientIdEnvironmentVariable] = identity.Azure.ClientId // if build env-var or build environment env-var have this variable explicitly set, it will override this identity set env-var
+	} else {
+		delete(envVarsMap, defaults.AzureClientIdEnvironmentVariable)
 	}
 }
 
 func (ctx *pipelineContext) setPipelineRunParamsFromEnvironmentBuilds(targetEnv string, envVarsMap v1.EnvVarsMap) {
 	for _, buildEnv := range ctx.radixApplication.Spec.Environments {
-		if !strings.EqualFold(buildEnv.Name, targetEnv) || buildEnv.Build.Variables == nil {
-			continue
-		}
-		for envVarName, envVarVal := range buildEnv.Build.Variables {
-			envVarsMap[envVarName] = envVarVal // Overrides common env-vars from Spec.Build, if any
+		if strings.EqualFold(buildEnv.Name, targetEnv) {
+			setBuildIdentity(envVarsMap, buildEnv.SubPipeline)
+			setBuildVariables(envVarsMap, buildEnv.SubPipeline, buildEnv.Build.Variables)
 		}
 	}
 }
