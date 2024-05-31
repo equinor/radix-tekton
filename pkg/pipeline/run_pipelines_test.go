@@ -18,6 +18,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tektoncd/pipeline/pkg/apis/pipeline/pod"
 	pipelinev1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,7 +48,7 @@ spec:
 `
 )
 
-func Test_RunPipeline_Has_ServiceAccount(t *testing.T) {
+func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	envMock := mockEnv(mockCtrl)
 	kubeClient, rxClient, tknClient := test.Setup()
@@ -82,9 +83,20 @@ func Test_RunPipeline_Has_ServiceAccount(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, l.Items)
 
-	expected := utils.GetSubPipelineServiceAccountName(env1)
-	actual := l.Items[0].Spec.TaskRunTemplate.ServiceAccountName
-	assert.Equal(t, expected, actual)
+	expected := pipelinev1.PipelineTaskRunTemplate{
+		ServiceAccountName: utils.GetSubPipelineServiceAccountName(env1),
+		PodTemplate: &pod.Template{
+			SecurityContext: &corev1.PodSecurityContext{
+				RunAsNonRoot: utils.BoolPtr(true),
+			},
+			NodeSelector: map[string]string{
+				corev1.LabelArchStable: "amd64",
+				corev1.LabelOSStable:   "linux",
+			},
+		},
+	}
+	// actual := l.Items[0].Spec.TaskRunTemplate.ServiceAccountName
+	assert.Equal(t, expected, l.Items[0].Spec.TaskRunTemplate)
 }
 
 func Test_RunPipeline_ApplyEnvVars(t *testing.T) {
