@@ -153,6 +153,10 @@ func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
 		SecurityContext: &corev1.PodSecurityContext{
 			RunAsNonRoot: utils.BoolPtr(true),
 		},
+		NodeSelector: map[string]string{
+			corev1.LabelArchStable: "amd64",
+			corev1.LabelOSStable:   "linux",
+		},
 	}
 
 	if ctx.radixApplication != nil && len(ctx.radixApplication.Spec.PrivateImageHubs) > 0 {
