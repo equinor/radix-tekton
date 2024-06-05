@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine3.19 as builder
+FROM golang:1.22-alpine3.20 as builder
 
 RUN apk update && apk add git ca-certificates curl && \
     apk add --no-cache gcc musl-dev
