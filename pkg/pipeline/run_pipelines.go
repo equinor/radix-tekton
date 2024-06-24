@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	operatorDefaults "github.com/equinor/radix-operator/pkg/apis/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/kube"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -151,7 +152,7 @@ func (ctx *pipelineContext) buildPipelineRun(pipeline *pipelinev1.Pipeline, targ
 func (ctx *pipelineContext) buildPipelineRunPodTemplate() *pod.Template {
 	podTemplate := pod.Template{
 		SecurityContext: &corev1.PodSecurityContext{
-			RunAsNonRoot: utils.BoolPtr(true),
+			RunAsNonRoot: pointers.Ptr(true),
 		},
 		NodeSelector: map[string]string{
 			corev1.LabelArchStable: "amd64",

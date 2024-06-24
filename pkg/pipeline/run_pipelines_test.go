@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/equinor/radix-common/utils/pointers"
 	pipelineDefaults "github.com/equinor/radix-operator/pipeline-runner/model/defaults"
 	"github.com/equinor/radix-operator/pkg/apis/config/dnsalias"
 	radixv1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
@@ -87,7 +88,7 @@ func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 		ServiceAccountName: utils.GetSubPipelineServiceAccountName(env1),
 		PodTemplate: &pod.Template{
 			SecurityContext: &corev1.PodSecurityContext{
-				RunAsNonRoot: utils.BoolPtr(true),
+				RunAsNonRoot: pointers.Ptr(true),
 			},
 			NodeSelector: map[string]string{
 				corev1.LabelArchStable: "amd64",
@@ -95,7 +96,6 @@ func Test_RunPipeline_TaskRunTemplate(t *testing.T) {
 			},
 		},
 	}
-	// actual := l.Items[0].Spec.TaskRunTemplate.ServiceAccountName
 	assert.Equal(t, expected, l.Items[0].Spec.TaskRunTemplate)
 }
 

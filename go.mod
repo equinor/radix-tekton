@@ -6,7 +6,7 @@ toolchain go1.22.1
 
 require (
 	github.com/equinor/radix-common v1.9.2
-	github.com/equinor/radix-operator v1.55.3
+	github.com/equinor/radix-operator v1.56.3-0.20240624081721-73555d52ec37
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/golang/mock v1.6.0
 	github.com/pkg/errors v0.9.1
