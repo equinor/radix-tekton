@@ -48,6 +48,10 @@ func (ctx *pipelineContext) preparePipelinesJob() (*model.PrepareBuildContext, e
 
 	err = git.ResetGitHead(ctx.env.GetGitRepositoryWorkspace(), gitHash)
 	if err != nil {
+		if ctx.env.GetRadixPipelineType() == v1.Promote {
+			log.Error().Msgf("Failed to find Git CommitID %s. Ignore the error for the Promote pipeline: %v", gitHash, err)
+			return &buildContext, nil
+		}
 		return nil, err
 	}
 
