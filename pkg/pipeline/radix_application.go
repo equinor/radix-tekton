@@ -3,13 +3,13 @@ package pipeline
 import (
 	"context"
 
-	"github.com/equinor/radix-operator/pipeline-runner/steps"
+	"github.com/equinor/radix-operator/pkg/apis/pipeline/application"
 	v1 "github.com/equinor/radix-operator/pkg/apis/radix/v1"
 	"github.com/equinor/radix-tekton/pkg/utils/configmap"
 )
 
 func (ctx *pipelineContext) createRadixApplicationFromContent(configFileContent string) (*v1.RadixApplication, error) {
-	return steps.CreateRadixApplication(context.TODO(), ctx.radixClient, ctx.env.GetDNSConfig(), configFileContent)
+	return application.CreateRadixApplication(context.TODO(), ctx.radixClient, ctx.env.GetDNSConfig(), configFileContent)
 }
 
 func (ctx *pipelineContext) createRadixApplicationFromConfigMap() (*v1.RadixApplication, error) {
