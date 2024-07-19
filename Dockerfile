@@ -9,8 +9,8 @@ WORKDIR /src
 COPY ./go.mod ./go.sum ./
 RUN go mod download
 
-# Copy and build project code
-COPY ./pkg ./main.go .
+COPY ./main.go ./
+COPY ./pkg ./pkg
 RUN go build -ldflags="-s -w" -o /build/radix-tekton
 
 # Run
