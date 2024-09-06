@@ -16,8 +16,8 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/filemode"
-	"github.com/go-git/go-git/v5/plumbing/format/diff"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/utils/merkletrie"
 	"github.com/rs/zerolog/log"
 )
 
@@ -117,19 +117,32 @@ func getGitAffectedResourcesBetweenCommits(gitWorkspace, configBranch, configFil
 }
 
 func getChangedFoldersFromTargetCommitTillExclusiveBeforeCommit(targetCommit *object.Commit, beforeCommit *object.Commit, configBranch string, currentBranch string, configFile string) ([]string, bool, error) {
-	patch, err := beforeCommit.Patch(targetCommit)
+	beforeTree, err := beforeCommit.Tree()
+	if err != nil {
+		return nil, false, err
+	}
+	targetTree, err := targetCommit.Tree()
+	if err != nil {
+		return nil, false, err
+	}
+	changes, err := beforeTree.Diff(targetTree)
 	if err != nil {
 		return nil, false, err
 	}
 	changedFolderNamesMap := make(map[string]bool)
 	changedConfigFile := false
-	for _, filePatch := range patch.FilePatches() {
-		fromFile, toFile := filePatch.Files()
-		for _, file := range []diff.File{fromFile, toFile} {
-			if file != nil {
-				appendFolderToMap(changedFolderNamesMap, &changedConfigFile, configBranch, currentBranch, configFile, file.Path(), file.Mode())
-			}
+	for _, change := range changes {
+		action, err := change.Action()
+		if err != nil {
+			return nil, false, err
 		}
+		fileName := change.To.Name
+		if action == merkletrie.Delete {
+			fileName = change.From.Name
+		} else if action == merkletrie.Modify && change.To.Name != change.From.Name {
+			appendFolderToMap(changedFolderNamesMap, &changedConfigFile, configBranch, currentBranch, configFile, change.From.Name, change.From.TreeEntry.Mode)
+		}
+		appendFolderToMap(changedFolderNamesMap, &changedConfigFile, configBranch, currentBranch, configFile, fileName, change.To.TreeEntry.Mode)
 	}
 	return maps.GetKeysFromMap(changedFolderNamesMap), changedConfigFile, nil
 }
