@@ -89,8 +89,11 @@ func (ctx *pipelineContext) setTargetEnvironments() error {
 	}
 	targetEnvironments := applicationconfig.GetTargetEnvironments(ctx.env.GetBranch(), ctx.radixApplication)
 	ctx.targetEnvironments = make(map[string]bool)
+	deployToEnvironment := ctx.env.GetRadixDeployToEnvironment()
 	for _, envName := range targetEnvironments {
-		ctx.targetEnvironments[envName] = true
+		if len(deployToEnvironment) == 0 || deployToEnvironment == envName {
+			ctx.targetEnvironments[envName] = true
+		}
 	}
 	if len(ctx.targetEnvironments) > 0 {
 		log.Info().Msgf("Environment(s) %v are mapped to the branch %s.", getEnvironmentList(ctx.targetEnvironments), ctx.env.GetBranch())

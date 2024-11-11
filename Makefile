@@ -51,7 +51,7 @@ test:
 
 .PHONY: build
 build:
-	docker build -t $(DOCKER_REGISTRY)/radix-tekton:$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH_TAG) -t $(DOCKER_REGISTRY)/radix-tekton:$(TAG) -f Dockerfile .
+	docker buildx build --platform=linux/arm64 -t $(DOCKER_REGISTRY)/radix-tekton:$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH_TAG) -t $(DOCKER_REGISTRY)/radix-tekton:$(TAG) -f Dockerfile .
 
 .PHONY: lint
 lint: bootstrap
