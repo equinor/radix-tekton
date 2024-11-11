@@ -97,7 +97,7 @@ func (e *env) GetRadixPromoteFromEnvironment() string {
 
 // GetRadixDeployToEnvironment Radix pipeline promote or deploy deployment target environment name
 func (e *env) GetRadixDeployToEnvironment() string {
-	return viper.GetString(defaults.RadixPromoteToEnvironmentEnvironmentVariable)
+	return viper.GetString(defaults.RadixPipelineJobToEnvironmentEnvironmentVariable)
 }
 
 // GetDNSConfig The list of DNS aliases, reserved for Radix platform Radix application and services
