@@ -19,7 +19,6 @@ const (
 )
 
 func Test_LoadRadixApplication(t *testing.T) {
-
 	type scenario struct {
 		name              string
 		registeredAppName string
@@ -61,5 +60,4 @@ func Test_LoadRadixApplication(t *testing.T) {
 			}
 		})
 	}
-
 }
