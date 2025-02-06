@@ -27,12 +27,11 @@ func main() {
 	}
 
 	ctx := pipeline.NewPipelineContext(kubeClient, radixClient, tektonClient, environment)
-	err = runAction(ctx)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to run ")
+	if err = runAction(ctx); err != nil {
+		log.Fatal().Err(err).Msg("Failed to run")
+	} else {
+		log.Info().Msg("Completed")
 	}
-
-	log.Info().Msg("Completed")
 }
 
 func runAction(ctx models.Context) error {
