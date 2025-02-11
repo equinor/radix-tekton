@@ -9,7 +9,7 @@ import (
 )
 
 func (ctx *pipelineContext) createRadixApplicationFromContent(configFileContent string) (*v1.RadixApplication, error) {
-	return application.CreateRadixApplication(context.TODO(), ctx.radixClient, ctx.env.GetDNSConfig(), configFileContent)
+	return application.CreateRadixApplication(context.TODO(), ctx.radixClient, ctx.env.GetAppName(), ctx.env.GetDNSConfig(), configFileContent)
 }
 
 func (ctx *pipelineContext) createRadixApplicationFromConfigMap() (*v1.RadixApplication, error) {
