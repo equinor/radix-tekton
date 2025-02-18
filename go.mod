@@ -2,7 +2,7 @@ module github.com/equinor/radix-tekton
 
 go 1.23.0
 
-toolchain go1.23.4
+toolchain go1.23.6
 
 require (
 	github.com/equinor/radix-common v1.9.7
