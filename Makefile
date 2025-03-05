@@ -53,9 +53,13 @@ test:
 build:
 	docker buildx build --platform=linux/arm64 -t $(DOCKER_REGISTRY)/radix-tekton:$(VERSION) -t $(DOCKER_REGISTRY)/radix-tekton:$(BRANCH_TAG) -t $(DOCKER_REGISTRY)/radix-tekton:$(TAG) -f Dockerfile .
 
+.PHONY: tidy
+tidy:
+	go mod tidy
+
 .PHONY: lint
 lint: bootstrap
-	golangci-lint run --max-same-issues 0
+	golangci-lint run --max-same-issues 0 --timeout 10m
 
 .PHONY: deploy
 deploy: build
@@ -69,12 +73,23 @@ mocks: bootstrap
 	mockgen -source ./pkg/models/env/env.go -destination ./pkg/models/env/env_mock.go -package env
 	mockgen -source ./pkg/internal/wait/pipelinerun.go -destination ./pkg/internal/wait/pipelinerun_mock.go -package wait
 
+.PHONY: generate
+generate: tidy mocks
+
+.PHONY: verify-generate
+verify-generate: generate
+	git diff --exit-code
+
+HAS_SWAGGER       := $(shell command -v swagger;)
 HAS_GOLANGCI_LINT := $(shell command -v golangci-lint;)
 HAS_MOCKGEN       := $(shell command -v mockgen;)
 
 bootstrap:
+ifndef HAS_SWAGGER
+	go install github.com/go-swagger/go-swagger/cmd/swagger@v0.31.0
+endif
 ifndef HAS_GOLANGCI_LINT
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.64.3
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.3
 endif
 ifndef HAS_MOCKGEN
 	go install github.com/golang/mock/mockgen@v1.6.0
