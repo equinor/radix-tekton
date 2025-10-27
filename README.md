@@ -1,5 +1,3 @@
-![Build status](https://github.com/equinor/radix-tekton/actions/workflows/build-push.yml/badge.svg)  
-
 # radix-tekton
 
 > [!IMPORTANT]  
